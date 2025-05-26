@@ -6,5 +6,7 @@
 # Except the python files
 !*.py
 
-# Except the qdrant folder
+# Except the qdrant folder and its contents
 !qdrant/
+!qdrant/config.yaml
+!qdrant/qdrant-x86_64-pc-windows-msvc.zip
