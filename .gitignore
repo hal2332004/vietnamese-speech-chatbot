@@ -1,0 +1,12 @@
+.venv/
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+*.wav
+*.safetensors
+*.mp3
+
+notebooks/viF5TTS/
