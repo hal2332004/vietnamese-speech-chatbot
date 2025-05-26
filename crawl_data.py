@@ -1,0 +1,217 @@
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
+from deep_translator import GoogleTranslator
+from sentence_transformers import SentenceTransformer
+from qdrant_client import QdrantClient
+from qdrant_client.models import PointStruct, VectorParams, Distance
+import hashlib
+import pandas as pd
+
+SESSION_FILE = "session.json"
+translator = GoogleTranslator(source='auto', target='vi')  # Dịch sang tiếng Việt
+
+# Khởi tạo mô hình SentenceTransformer
+model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
+
+# Khởi tạo kết nối với Qdrant
+qdrant_client = QdrantClient(
+    url="http://localhost:6333",  # Địa chỉ Qdrant server
+    prefer_grpc=False,  # Sử dụng HTTP thay vì gRPC
+)
+collection_name = "syllabus_embeddings"
+
+# Xóa collection nếu đã tồn tại
+if qdrant_client.collection_exists(collection_name):
+    qdrant_client.delete_collection(collection_name)
+    print(f"❌ Collection '{collection_name}' đã tồn tại và đã bị xóa.")
+
+# Tạo collection nếu chưa tồn tại
+if not qdrant_client.collection_exists(collection_name):
+    qdrant_client.create_collection(
+        collection_name,
+        vectors_config=VectorParams(size=model.get_sentence_embedding_dimension(), distance=Distance.COSINE),
+    )
+    print(f"✅ Collection '{collection_name}' created.")
+
+# Hàm tạo ID duy nhất cho mỗi điểm
+def url_to_id(url):
+    return hashlib.md5(url.encode()).hexdigest()
+
+# Tạo embedding và lưu vào Qdrant
+def create_and_store_embedding(text: str, url: str):
+    try:
+        embedding_input = f"Tài liệu để truy xuất: {text}"
+        embedding = model.encode(embedding_input)
+
+        point_id = url_to_id(url)   # Tạo ID duy nhất cho điểm
+        qdrant_client.upsert(
+            collection_name=collection_name,
+            points=[
+                PointStruct(
+                    id=point_id,
+                    vector=embedding.tolist(),
+                    payload={"url": url, "văn bản": text}
+                )
+            ]
+        )
+        print(f"📥 Đã lưu embedding với ID: {point_id}")
+
+    except Exception as e:
+        print(f"❌ Lỗi khi tạo hoặc lưu embedding: {e}")
+
+# Dịch văn bản sử dụng Google Translator
+def translate_text(text: str) -> str:
+    try:
+        translated = translator.translate(text)
+        return translated
+    except Exception as e:
+        print(f"❌ Lỗi dịch: {e}")
+        return text  # Trả về văn bản gốc nếu có lỗi
+
+# Loại bỏ khoảng trắng thừa và định dạng văn bản
+def clean(text: str) -> str:
+    """Loại bỏ khoảng trắng thừa đầu, cuối và gom các khoảng trắng giữa."""
+    return ' '.join(text.strip().split())
+
+# Trích xuất văn bản
+def extract_table_text(html: str) -> str:
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table")
+    if not table:
+        return "Không tìm thấy bảng trong syllabus."
+    
+    result_lines = []
+    
+    """ Duyệt qua từng hàng trong bảng và lấy nội dung văn bản """
+    rows = table.find_all("tr")
+    for row in rows:
+        cols = row.find_all(["td", "th"])
+        if len(cols) >= 2:
+            attr = clean(cols[0].get_text())
+            val = clean(cols[1].get_text())
+
+            # Dịch nội dung nếu cần
+            attr_vi = translate_text(attr)
+            val_vi = translate_text(val)
+
+            result_lines.append(f"{attr_vi}: {val_vi}")
+        
+        elif len(cols) == 1:
+            # Nếu chỉ có một cột, dịch và thêm vào kết quả
+            content = clean(cols[0].get_text())
+            content_vi = translate_text(content)
+            result_lines.append(content_vi)
+
+    return "\n".join(result_lines)        
+
+# Lấy nội dung syllabus từ web
+def process_urls(urls):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        context = browser.new_context(storage_state=SESSION_FILE)
+        page = context.new_page()
+
+        for idx, url in enumerate(urls):
+            try:
+                """Truy cập từng URL trong danh sách và lấy nội dung"""
+                print(f"🔍 Đang xử lý URL {idx + 1}/{len(urls)}: {url}")
+                page.goto(url)
+                page.wait_for_load_state("networkidle")
+                page.wait_for_timeout(2000)
+
+                html = page.content()
+                text = extract_table_text(html)
+                print(f"✅ Đã lấy nội dung từ {url}")
+                with open(f"syllabus_{idx + 1}.html", "w", encoding="utf-8") as f:
+                    f.write(text)
+
+                """ In nội dung đã dịch """
+                # print(f"📄 Nội dung đã dịch từ {url}:\n{text}\n")
+
+                # Lưu embedding vào Qdrant
+                create_and_store_embedding(text, url)
+
+            except Exception as e:
+                print(f"❌ Lỗi khi xử lý {url}: {e}")
+
+        browser.close()
+                
+
+if __name__ == "__main__":
+    urls = [
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11212",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11246",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11853",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12224",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12594",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10473",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11098",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10369",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12039",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11845",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11214",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12627",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12746",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11252",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10422",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10736",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=8972",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12079",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12745",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12557",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12092",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12631",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12549",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12281",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12547",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10358",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12548",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylID=11218",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylID=12550",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylID=11217"
+    ]
+
+    process_urls(urls)
+
+    result, _ = qdrant_client.scroll(
+        collection_name=collection_name,
+        with_payload=True,
+        with_vectors=True,  # Không cần vector nếu chỉ muốn xem nội dung
+        limit=30
+    )
+
+    data = []
+    for point in result:
+        data.append({
+            "ID": point.id,
+            "URL": point.payload.get("url", ""),
+             "Văn bản": point.payload.get("văn bản", "")
+        })
+
+    df = pd.DataFrame(data)
+    print(df.to_string(index=False))
+    # Lưu DataFrame vào file CSV
+    df.to_csv("syllabus_data.csv", index=False, encoding="utf-8-sig")
+    print("✅ Dữ liệu đã được lưu vào 'syllabus_data.csv'")
+
+
+    # Tạo embedding cho truy vấn
+    query_text = "Tóm tắt nội dung AI Development with TensorFlow"
+    query_embedding = model.encode(f"Tài liệu để truy xuất: {query_text}").tolist()
+
+    # Tìm kiếm trong Qdrant
+    search_result = qdrant_client.search(
+        collection_name=collection_name,
+        query_vector=query_embedding,
+        limit=1,  # Giới hạn số lượng kết quả trả về
+        with_payload=True,  # Trả về payload
+    )
+
+    # Ghép kết quả tìm kiếm thành một chuỗi văn bản
+    contexts = "\n\n".join([point.payload["văn bản"] for point in search_result])
+
+    print(f"🔍 Kết quả tìm kiếm cho truy vấn '{query_text}':", contexts)
+
+    
+
+

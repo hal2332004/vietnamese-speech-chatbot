@@ -1,0 +1,7 @@
+# Ignore everything in the root directory
+*
+# Except the .gitignore file itself
+!.gitignore
+
+# Except the python files
+!*.py
