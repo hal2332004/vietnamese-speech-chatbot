@@ -16,7 +16,7 @@ collection_name = "syllabus_embeddings"
 model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
 
 # Khởi tạo Google Generative AI
-genai.configure(api_key="Your_api_key_here")  # Thay thế bằng API key của bạn
+genai.configure(api_key="AIzaSyDldnccV2EA2xBXzfIg_GuLtbNy_RRkMZg")  # Thay thế bằng API key của bạn
 
 # --- Định nghĩa Chatbot ---
 class SmartChabot:
@@ -68,7 +68,7 @@ async def main():
     """Hàm chính để chạy chatbot."""
     # Khởi tạo mô hình và chatbot
     chatbot = SmartChabot(qdrant_client, collection_name, model)
-    question = "Tóm tắt nội dung môn DAT301M"
+    question = "Toàn bộ nội dung môn AIL303m "
     print("🤖 Trợ lý thông minh đang trả lời câu hỏi...")
 
     await asyncio.sleep(1)  # Giả lập thời gian xử lý

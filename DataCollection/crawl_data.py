@@ -6,11 +6,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, VectorParams, Distance
 import hashlib
 import pandas as pd
-import asyncio
-import google.generativeai as genai
-# Khởi tạo Google Generative AI
-genai.configure(api_key="Your_api_key_here")  # Thay thế bằng API key của bạn
-from qdrant_client.http.models import Filter, FieldCondition, MatchValue
+
 
 SESSION_FILE = "session.json"
 translator = GoogleTranslator(source='auto', target='vi')  # Dịch sang tiếng Việt
@@ -183,64 +179,63 @@ def process_urls(urls):
                 
 
 if __name__ == "__main__":
-    # urls = [
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11212",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11246",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11853",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12224",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12594",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10473",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11098",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10369",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12039",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11845",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11214",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12627",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12746",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11252",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10422",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10736",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=8972",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12079",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12745",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12557",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12092",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12631",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12549",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12281",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12547",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10358",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12548",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylID=11218",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylID=12550",
-    #     "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylID=11217"
-    # ]
+    urls = [
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11212",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11246",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11853",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12224",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12594",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10473",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11098",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10369",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12039",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11845",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11214",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12627",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12746",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=11252",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10422",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10736",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=8972",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12079",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12745",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12557",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12092",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12631",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12549",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12281",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12547",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=10358",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylid=12548",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylID=11218",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylID=12550",
+        "https://flm.fpt.edu.vn/gui/role/student/SyllabusDetails?sylID=11217"
+    ]
 
-    # process_urls(urls)
+    process_urls(urls)
 
-    # result, _ = qdrant_client.scroll(
-    #     collection_name=collection_name,
-    #     with_payload=True,
-    #     with_vectors=True,  # Không cần vector nếu chỉ muốn xem nội dung
-    #     limit=30
-    # )
+    result, _ = qdrant_client.scroll(
+        collection_name=collection_name,
+        with_payload=True,
+        with_vectors=True,  # Không cần vector nếu chỉ muốn xem nội dung
+        limit=30
+    )
 
-    # data = []
-    # for point in result:
-    #     data.append({
-    #         "ID": point.id,
-    #         "URL": point.payload.get("url", ""),
-    #          "Văn bản": point.payload.get("văn bản", "")
-    #     })
+    data = []
+    for point in result:
+        data.append({
+            "ID": point.id,
+            "URL": point.payload.get("url", ""),
+             "Văn bản": point.payload.get("văn bản", "")
+        })
 
-    # df = pd.DataFrame(data)
-    # print(df.to_string(index=False))
-    # # Lưu DataFrame vào file CSV
-    # df.to_csv("syllabus_data.csv", index=False, encoding="utf-8-sig")
-    # print("✅ Dữ liệu đã được lưu vào 'syllabus_data.csv'")
+    df = pd.DataFrame(data)
+    print(df.to_string(index=False))
+    # Lưu DataFrame vào file CSV
+    df.to_csv("syllabus_data.csv", index=False, encoding="utf-8-sig")
+    print("✅ Dữ liệu đã được lưu vào 'syllabus_data.csv'")
     
     
-    asyncio.run(answer())
 
 
 
