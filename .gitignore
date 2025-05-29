@@ -3,10 +3,15 @@
 # Except the .gitignore file itself
 !.gitignore
 
-# Except the python files
-!*.py
-
 # Except the qdrant folder and its contents
 !qdrant/
 !qdrant/config.yaml
 !qdrant/qdrant-x86_64-pc-windows-msvc.zip
+
+# Except the folder
+!chatbot/
+!chatbot/*.py
+
+!DataCollection/
+!DataCollection/*.py
+
