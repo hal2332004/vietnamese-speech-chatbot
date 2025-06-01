@@ -6,9 +6,10 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, VectorParams, Distance
 import hashlib
 import pandas as pd
+import os
 
 
-SESSION_FILE = "session.json"
+SESSION_FILE = "E:\CN AI\SU2025\DAT301m\DataCollection\session.json"
 translator = GoogleTranslator(source='auto', target='vi')  # Dịch sang tiếng Việt
 
 # Khởi tạo mô hình SentenceTransformer
@@ -21,10 +22,10 @@ qdrant_client = QdrantClient(
 )
 collection_name = "syllabus_embeddings"
 
-# # Xóa collection nếu đã tồn tại
-# if qdrant_client.collection_exists(collection_name):
-#     qdrant_client.delete_collection(collection_name)
-#     print(f"❌ Collection '{collection_name}' đã tồn tại và đã bị xóa.")
+# Xóa collection nếu đã tồn tại
+if qdrant_client.collection_exists(collection_name):
+    qdrant_client.delete_collection(collection_name)
+    print(f"❌ Collection '{collection_name}' đã tồn tại và đã bị xóa.")
 
 # Tạo collection nếu chưa tồn tại
 if not qdrant_client.collection_exists(collection_name):
@@ -172,6 +173,9 @@ def process_urls(urls):
                 # Lưu embedding vào Qdrant
                 create_and_store_embedding(text, url)
 
+                # Xóa file HTML sau khi đã lưu embedding
+                os.remove(f"syllabus_{idx + 1}.html")
+
             except Exception as e:
                 print(f"❌ Lỗi khi xử lý {url}: {e}")
 
@@ -232,7 +236,7 @@ if __name__ == "__main__":
     df = pd.DataFrame(data)
     print(df.to_string(index=False))
     # Lưu DataFrame vào file CSV
-    df.to_csv("syllabus_data.csv", index=False, encoding="utf-8-sig")
+    df.to_csv("E:\CN AI\SU2025\DAT301m\DataCollection\syllabus_data.csv", index=False, encoding="utf-8-sig")
     print("✅ Dữ liệu đã được lưu vào 'syllabus_data.csv'")
     
     

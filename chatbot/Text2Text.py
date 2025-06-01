@@ -60,7 +60,7 @@ async def simulate_typing(text: str):
     """Mô phỏng hiệu ứng gõ chữ."""
     for char in text:
         print(char, end='', flush=True)
-        await asyncio.sleep(0.05)  # Thời gian giữa các ký tự
+        await asyncio.sleep(0.005)  # Thời gian giữa các ký tự
     print()  # Xuống dòng sau khi hoàn thành
 
 # --- Hàm chính ---
@@ -68,7 +68,7 @@ async def main():
     """Hàm chính để chạy chatbot."""
     # Khởi tạo mô hình và chatbot
     chatbot = SmartChabot(qdrant_client, collection_name, model)
-    question = "Toàn bộ nội dung môn AIL303m "
+    question = "Toàn bộ nội dung môn DPL302m"
     print("🤖 Trợ lý thông minh đang trả lời câu hỏi...")
 
     await asyncio.sleep(1)  # Giả lập thời gian xử lý
