@@ -238,13 +238,3 @@ if __name__ == "__main__":
     # Lưu DataFrame vào file CSV
     df.to_csv("E:\CN AI\SU2025\DAT301m\DataCollection\syllabus_data.csv", index=False, encoding="utf-8-sig")
     print("✅ Dữ liệu đã được lưu vào 'syllabus_data.csv'")
-    
-    
-
-
-
-
-
-    
-
-

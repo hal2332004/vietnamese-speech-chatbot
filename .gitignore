@@ -1,5 +1,7 @@
 # Ignore everything in the root directory
 *
+.env
+
 # Except the .gitignore file itself
 !.gitignore
 
@@ -9,9 +11,18 @@
 !qdrant/qdrant-x86_64-pc-windows-msvc.zip
 
 # Except the folder
-!chatbot/
-!chatbot/*.py
-
 !DataCollection/
 !DataCollection/*.py
+
+!demo/
+!demo/*.py
+
+!STT/
+!STT/*.py
+
+!TTS/
+!TTS/*.py
+
+!TTT/
+!TTT/*.py
 

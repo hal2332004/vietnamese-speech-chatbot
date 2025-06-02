@@ -3,6 +3,13 @@ import asyncio
 import google.generativeai as genai
 # from chatbot.DataCollection.crawl_data import collection_name, qdrant_client
 from sentence_transformers import SentenceTransformer
+from dotenv import load_dotenv
+import os
+
+# Tải biến môi trường từ file .env
+load_dotenv()
+# Lấy API key từ biến môi trường
+API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Khởi tạo kết nối với Qdrant
 qdrant_client = QdrantClient(
@@ -16,7 +23,7 @@ collection_name = "syllabus_embeddings"
 model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
 
 # Khởi tạo Google Generative AI
-genai.configure(api_key="AIzaSyDldnccV2EA2xBXzfIg_GuLtbNy_RRkMZg")  # Thay thế bằng API key của bạn
+genai.configure(api_key=API_KEY)  # Thay thế bằng API key của bạn
 
 # --- Định nghĩa Chatbot ---
 class SmartChabot:
@@ -26,7 +33,7 @@ class SmartChabot:
         self.model = model
         self.gemini_model = gemini_model
 
-    def get_context_from_qdrant(self, question, k=30):
+    def get_context_from_qdrant(self, question, k=29):
         """ Lấy ngữ cảnh từ Qdrant dựa trên câu hỏi """
         embedding = self.model.encode(f"Tài liệu để truy xuất: {question}").tolist()
         response = self.qdrant_client.search(
@@ -68,7 +75,7 @@ async def main():
     """Hàm chính để chạy chatbot."""
     # Khởi tạo mô hình và chatbot
     chatbot = SmartChabot(qdrant_client, collection_name, model)
-    question = "Toàn bộ nội dung môn DPL302m"
+    question = "Cho tôi thông tin về môn học sâu"
     print("🤖 Trợ lý thông minh đang trả lời câu hỏi...")
 
     await asyncio.sleep(1)  # Giả lập thời gian xử lý
