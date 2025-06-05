@@ -1,0 +1,11 @@
+dotenv
+python-dotenv 
+decord
+librosa
+pydub
+soundfile
+sounddevice
+huggingface-hub
+sentence-transformers 
+transformers
+google-genai
