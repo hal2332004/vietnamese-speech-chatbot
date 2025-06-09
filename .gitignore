@@ -17,12 +17,9 @@
 !demo/
 !demo/*.py
 
-!STT/
-!STT/*.py
+!Dockerfile
+!docker-compose.yml
+!requirements.txt
 
-!TTS/
-!TTS/*.py
-
-!TTT/
-!TTT/*.py
+!.dockerignore
 
