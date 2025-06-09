@@ -14,8 +14,10 @@
 !DataCollection/
 !DataCollection/*.py
 
-!demo/
-!demo/*.py
+!src/
+!src/demo/
+!src/demo/*.py
+
 
 !Dockerfile
 !docker-compose.yml
