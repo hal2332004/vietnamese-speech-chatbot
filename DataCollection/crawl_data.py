@@ -9,7 +9,7 @@ import pandas as pd
 import os
 
 
-SESSION_FILE = "E:\CN AI\SU2025\DAT301m\DataCollection\session.json"
+SESSION_FILE = "DataCollection\session.json"
 translator = GoogleTranslator(source='auto', target='vi')  # Dịch sang tiếng Việt
 
 # Khởi tạo mô hình SentenceTransformer
@@ -236,5 +236,5 @@ if __name__ == "__main__":
     df = pd.DataFrame(data)
     print(df.to_string(index=False))
     # Lưu DataFrame vào file CSV
-    df.to_csv("E:\CN AI\SU2025\DAT301m\DataCollection\syllabus_data.csv", index=False, encoding="utf-8-sig")
+    df.to_csv("DataCollection\syllabus_data.csv", index=False, encoding="utf-8-sig")
     print("✅ Dữ liệu đã được lưu vào 'syllabus_data.csv'")

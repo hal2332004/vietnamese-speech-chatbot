@@ -1,5 +1,3 @@
-import sounddevice as sd
-from scipy.io.wavfile import write
 import os
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from qdrant_client import QdrantClient
@@ -10,7 +8,6 @@ import wave
 from google import genai
 from google.genai import types
 
-
 # Load environment variables from .env file
 load_dotenv()
 
@@ -18,44 +15,29 @@ load_dotenv()
 API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Get HUGGINGFACE Token from environment variable
-hf_token = os.getenv("HUGGINGFACE_TOKEN")
+# hf_token = os.getenv("HUGGINGFACE_TOKEN")
 
 
 # Create pipeline for text generation using HuggingFace token
-tokenizer = AutoTokenizer.from_pretrained("google/gemma-7b", token=hf_token)
-model = AutoModelForCausalLM.from_pretrained("google/gemma-7b", token=hf_token)
+tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-1.3B") #token=hf_token)
+model = AutoModelForCausalLM.from_pretrained("EleutherAI/gpt-neo-1.3B") #token=hf_token)
 text_gen_pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer, device=0)
 
 
 # Initialize Qdrant client for Docker 
 qdrant_client = QdrantClient(
-    url="http://qdrant:6333",  # Qdrant server address for Docker
+    url="http://host.docker.internal:6333",  # Qdrant server address for Docker
     prefer_grpc=False,  # Use HTTP instead of gRPC
 )
-
-# # Initialize Qdrant client for local
-# qdrant_client = QdrantClient(
-#     url="http://localhost:6333",  # Qdrant server address for Docker
-#     prefer_grpc=False,  # Use HTTP instead of gRPC
-# )
 
 # Collection name for Qdrant
 collection_name = "syllabus_embeddings"
 
 # Initialize SentenceTransformer model
-model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
+embedding_model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
 
 # Ensure ffmpeg is in the PATH for audio processing
 os.environ["PATH"] += os.pathsep + "C:\\ProgramData\\chocolatey\\lib\\ffmpeg\\tools\\ffmpeg\\bin"
-
-# Record audio and save the file WAV
-def record_audio_local(filename, duration=10, samplerate=44100):
-    print("Start recording...")
-    recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype='int16')
-    sd.wait()
-    write(filename, samplerate, recording)
-    print(f"Recording saved to {filename}")
-
 
 # PhoWhisper transcription
 def transcribe_audio_pho(filename):
@@ -123,7 +105,7 @@ def text_to_speech_gemini(text, filename):
     client = genai.Client(api_key=API_KEY)
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash-preview-05-20",
+        model="gemini-2.5-flash-preview-tts",
         contents=f"Say cheerfully:{text}!",
         config=types.GenerateContentConfig(
             response_modalities=["AUDIO"],
@@ -144,15 +126,14 @@ def text_to_speech_gemini(text, filename):
 # Main function to run the demo
 async def main():
     # Record audio
-    audio_filename = "E:/CN_AI/SU2025/DAT301m/src/demo/demo_audio_input.wav"
-    record_audio_local(audio_filename, duration=5)
+    audio_filename = "src/demo/demo_audio_input.wav"
 
     # Transcribe audio using PhoWhisper
     transcription = transcribe_audio_pho(audio_filename)
     print("Speech to text (PhoWhisper):", transcription)
 
     # Initialize chatbot
-    chatbot = SmartChabot(qdrant_client, collection_name, model)
+    chatbot = SmartChabot(qdrant_client, collection_name, embedding_model)
     question = transcription
     print("🤖 Trợ lý thông minh đang trả lời câu hỏi...")
     
@@ -167,7 +148,7 @@ async def main():
     await typing_simulation(response)
 
     # Convert response to speech using Gemini
-    tts_filename = "E:/CN_AI/SU2025/DAT301m/src/demo/demo_tts_output.wav"
+    tts_filename = "src/demo/demo_tts_output.wav"
     text_to_speech_gemini(response, tts_filename)
 
     # Play the TTS output (optional)

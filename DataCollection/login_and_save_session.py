@@ -1,7 +1,7 @@
 from playwright.sync_api import sync_playwright
 import json
 
-SESSION_FILE = "E:\CN AI\SU2025\DAT301m\DataCollection\session.json"
+SESSION_FILE = "DataCollection\session.json"
 LOGIN_URL = "https://flm.fpt.edu.vn/DefaultSignin"
 
 def save_storage(context):
