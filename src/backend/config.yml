@@ -1,8 +1,0 @@
-model_config:
-  gemini:
-    model_name: "gemini-2.0-flash"  # Gemini model version
-    temperature: 0.9
-    top_p: 0.8
-    top_k: 40
-    max_output_tokens: 512
-
