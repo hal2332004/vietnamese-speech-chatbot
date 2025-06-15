@@ -11,12 +11,15 @@ from google.genai import types
 # Load environment variables from .env file
 load_dotenv()
 
-# Get API key from environment variable
-API_KEY = os.getenv("GEMINI_API_KEY")
+# Get GEMINI API key from environment variable
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Get QDRANT API key and host from environment variables
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_HOST = os.getenv("QDRANT_HOST")
 
 # Get HUGGINGFACE Token from environment variable
 # hf_token = os.getenv("HUGGINGFACE_TOKEN")
-
 
 # Create pipeline for text generation using HuggingFace token
 tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-1.3B") #token=hf_token)
@@ -26,8 +29,9 @@ text_gen_pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer
 
 # Initialize Qdrant client for Docker 
 qdrant_client = QdrantClient(
-    url="http://host.docker.internal:6333",  # Qdrant server address for Docker
-    prefer_grpc=False,  # Use HTTP instead of gRPC
+    api_key=QDRANT_API_KEY,  # Qdrant API key
+    url=QDRANT_HOST,  # Qdrant server URL 
+    https=True,  # Use HTTPS
 )
 
 # Collection name for Qdrant

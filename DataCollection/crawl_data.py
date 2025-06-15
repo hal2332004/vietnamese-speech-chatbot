@@ -7,9 +7,19 @@ from qdrant_client.models import PointStruct, VectorParams, Distance
 import hashlib
 import pandas as pd
 import os
+from dotenv import load_dotenv
 
+# Tải biến môi trường từ file .env
+load_dotenv()
 
+# Lấy Qdrant API key từ biến môi trường
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_HOST = os.getenv("QDRANT_HOST")
+
+# Tải session đã lưu từ file
 SESSION_FILE = "DataCollection\session.json"
+
+# Khởi tạo Google Translator
 translator = GoogleTranslator(source='auto', target='vi')  # Dịch sang tiếng Việt
 
 # Khởi tạo mô hình SentenceTransformer
@@ -17,8 +27,9 @@ model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
 
 # Khởi tạo kết nối với Qdrant
 qdrant_client = QdrantClient(
-    url="http://localhost:6333",  # Địa chỉ Qdrant server
-    prefer_grpc=False,  # Sử dụng HTTP thay vì gRPC
+    api_key = QDRANT_API_KEY, # Khóa API Qdrant
+    url = QDRANT_HOST,  # Địa chỉ Qdrant server
+    https = True,  # Sử dụng HTTPS
 )
 collection_name = "syllabus_embeddings"
 
