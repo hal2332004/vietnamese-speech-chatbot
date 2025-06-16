@@ -1,0 +1,39 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #121212;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  width: 80%;
+  margin-bottom: 1rem;
+}
+
+.chat-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+button {
+  padding: 10px 20px;
+  background-color: #03a9f4;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.chat-content {
+  width: 80%;
+  background: #1e1e1e;
+  padding: 1rem;
+  border-radius: 10px;
+}

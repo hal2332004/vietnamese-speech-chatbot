@@ -5,23 +5,33 @@
 # Except the .gitignore file itself
 !.gitignore
 
-# Except the qdrant folder and its contents
-!qdrant/
-!qdrant/config.yaml
-!qdrant/qdrant-x86_64-pc-windows-msvc.zip
-
 # Except the folder
 !DataCollection/
 !DataCollection/*.py
 
 !src/
-!src/demo/
-!src/demo/*.py
+src/demo/
 
+!src/routes/
+!src/routes/*.py
+
+!src/utils/
+!src/utils/*.py
+
+!src/services/
+!src/services/*.py
+
+!src/ui/
+!src/ui/*.html
+!src/ui/*.css
+!src/ui/*.js
+
+!main.py
 
 !Dockerfile
 !docker-compose.yml
 !requirements.txt
-
 !.dockerignore
+
+
 

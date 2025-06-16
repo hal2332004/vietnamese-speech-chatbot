@@ -7,6 +7,11 @@ from sentence_transformers import SentenceTransformer
 import wave
 from google import genai
 from google.genai import types
+import time
+import functools
+import warnings
+
+warnings.filterwarnings("ignore")
 
 # Load environment variables from .env file
 load_dotenv()
@@ -22,8 +27,8 @@ QDRANT_HOST = os.getenv("QDRANT_HOST")
 # hf_token = os.getenv("HUGGINGFACE_TOKEN")
 
 # Create pipeline for text generation using HuggingFace token
-tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-1.3B") #token=hf_token)
-model = AutoModelForCausalLM.from_pretrained("EleutherAI/gpt-neo-1.3B") #token=hf_token)
+tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-rw-1b") #token=hf_token)
+model = AutoModelForCausalLM.from_pretrained("tiiuae/falcon-rw-1b") #token=hf_token)
 text_gen_pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer, device=0)
 
 
@@ -41,9 +46,32 @@ collection_name = "syllabus_embeddings"
 embedding_model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
 
 # Ensure ffmpeg is in the PATH for audio processing
-os.environ["PATH"] += os.pathsep + "C:\\ProgramData\\chocolatey\\lib\\ffmpeg\\tools\\ffmpeg\\bin"
+# os.environ["PATH"] += os.pathsep + "C:\\ProgramData\\chocolatey\\lib\\ffmpeg\\tools\\ffmpeg\\bin"
+
+# Timeit decorator to measure execution time of functions (async)
+def timeit_async(func):
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = await func(*args, **kwargs)
+        end_time = time.perf_counter()
+        print(f"Thời gian xử lý {func.__name__}: {end_time - start_time:.2f} giây")
+        return result
+    return wrapper
+
+# Timeit decorator to measure execution time of functions (sync)
+def timeit_sync(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        print(f"Thời gian xử lý {func.__name__}: {end_time - start_time:.2f} giây")
+        return result
+    return wrapper
 
 # PhoWhisper transcription
+@timeit_sync
 def transcribe_audio_pho(filename):
     pipe = pipeline("automatic-speech-recognition", model="vinai/PhoWhisper-base")
     result = pipe(filename)
@@ -71,9 +99,13 @@ class SmartChabot:
         return context
     
     def generate_local_response(self, prompt):
+        max_prompt_length = 2048  # Adjust based on model's max input length
+        if len(prompt) > max_prompt_length:
+            prompt = prompt[:max_prompt_length]
         response = text_gen_pipeline(prompt, max_new_tokens=256, do_sample=True, temperature=0.7)
         return response[0]['generated_text']
     
+    @timeit_async
     async def answer_question(self, question: str) -> str:
         """Answer the question based on context from Qdrant."""
         try:
@@ -97,6 +129,7 @@ async def typing_simulation(text, delay=0.005):
 
 
 # Text to speech using Gemini
+@timeit_sync
 def text_to_speech_gemini(text, filename):
     """Convert text to speech using Gemini."""
     def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
@@ -106,7 +139,7 @@ def text_to_speech_gemini(text, filename):
             wf.setframerate(rate)
             wf.writeframes(pcm)
 
-    client = genai.Client(api_key=API_KEY)
+    client = genai.Client(api_key=GEMINI_API_KEY)
 
     response = client.models.generate_content(
         model="gemini-2.5-flash-preview-tts",
@@ -133,13 +166,14 @@ async def main():
     audio_filename = "src/demo/demo_audio_input.wav"
 
     # Transcribe audio using PhoWhisper
+    print("🎤 Đang chuyển đổi giọng nói thành văn bản...")
     transcription = transcribe_audio_pho(audio_filename)
     print("Speech to text (PhoWhisper):", transcription)
 
     # Initialize chatbot
+    print("🤖 Trợ lý thông minh đang trả lời câu hỏi...")
     chatbot = SmartChabot(qdrant_client, collection_name, embedding_model)
     question = transcription
-    print("🤖 Trợ lý thông minh đang trả lời câu hỏi...")
     
     await asyncio.sleep(1)  # Simulate processing time
 
@@ -152,11 +186,12 @@ async def main():
     await typing_simulation(response)
 
     # Convert response to speech using Gemini
+    print("🔊 Đang chuyển đổi văn bản thành giọng nói...")
     tts_filename = "src/demo/demo_tts_output.wav"
     text_to_speech_gemini(response, tts_filename)
 
-    # Play the TTS output (optional)
-    os.system(f"start {tts_filename}")  # Uncomment to play the audio file
+    # # Play the TTS output (optional)
+    # os.system(f"start {tts_filename}")  # Uncomment to play the audio file
 
 if __name__ == "__main__":
     asyncio.run(main())

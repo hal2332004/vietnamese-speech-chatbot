@@ -17,6 +17,5 @@ __pycache__/
 .env
 *.json
 fpt_user_data/
-STT/
-TTS/
-TTT/
+src/demo/
+

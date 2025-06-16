@@ -101,8 +101,8 @@ def modify_table_text(text: str) -> str:
         text = text.replace("ISAPPRIVE", "Được chấp thuận")
 
     """Sửa Đúng vậy thành Có."""
-    if "Đúng vậy" in text:
-        text = text.replace("Đúng vậy", "Có")
+    if "ĐÚNG VẬY" in text:
+        text = text.replace("ĐÚNG VẬY", "Có")
 
     """Sửa Minavgmarktopass thành Điểm trung bình tối thiểu."""
     if "Minavgmarktopass" in text:

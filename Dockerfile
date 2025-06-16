@@ -1,22 +1,17 @@
-# Dockerfile
+# Use the official Python 3.11 slim image as the base image
 FROM python:3.11-slim
 
-# Tạo thư mục làm việc
-WORKDIR /workspace
+# Set the working directory inside the container to /app
+WORKDIR /app
 
-# Cài ffmpeg
-RUN apt-get update && \
-    apt-get install -y ffmpeg && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Copy the requirements.txt file into the container at /app
+COPY requirements.txt .
 
-# Copy toàn bộ mã nguồn vào container
+# Install Python dependencies from requirements.txt without using cache
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy all files from the current directory to /app in the container
 COPY . .
 
-# Cài đặt dependencies
-RUN pip install --no-cache-dir -r /workspace/requirements.txt 
-
-# Mở port nếu cần
-EXPOSE 8000
-
-# Lệnh mặc định để chạy
-CMD ["python", "src/demo/full_demo.py"]
+# Set the default command to run the FastAPI app with Uvicorn on port 5500
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5500"]
