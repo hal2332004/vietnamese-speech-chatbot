@@ -22,12 +22,6 @@ tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-rw-1b") #token=hf_token
 model = AutoModelForCausalLM.from_pretrained("tiiuae/falcon-rw-1b") #token=hf_token)
 text_gen_pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer, device=0)
 
-# Create pipeline for text generation using HuggingFace token
-tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-rw-1b") #token=hf_token)
-model = AutoModelForCausalLM.from_pretrained("tiiuae/falcon-rw-1b") #token=hf_token)
-text_gen_pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer, device=0)
-
-
 # Initialize Qdrant client for Docker 
 qdrant_client = QdrantClient(
     api_key=QDRANT_API_KEY,  # Qdrant API key

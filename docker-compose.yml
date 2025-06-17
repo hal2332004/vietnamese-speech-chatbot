@@ -1,7 +1,7 @@
 version: '3.9'
 
 services:
-  chabot-app:
+  chatbot-app:
     build: .
     env_file:
       - .env
@@ -12,7 +12,7 @@ services:
       - ./temp:/app/temp
     container_name: chatbot-service
     ports:
-      - "5500:5500"
+      - "8000:8000"
     deploy:
       resources:
         reservations:
@@ -20,5 +20,3 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-volumes:
-  qdrant_data:

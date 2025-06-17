@@ -34,7 +34,7 @@ def tts_generate(text, output_path, gemini_api_key):
             wf.writeframes(pcm)
     
     # Initialize the Gemini client with the provided API key
-    client = genai.GenAIClient(api_key=gemini_api_key)
+    client = genai.Client(api_key=gemini_api_key)
     
     # Generate speech content using the Gemini model
     response = client.models.generate_content(
