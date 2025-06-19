@@ -4,6 +4,7 @@ from qdrant_client import QdrantClient
 import os
 from dotenv import load_dotenv
 from src.utils.time_logger import timeit
+import torch
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -17,10 +18,18 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_HOST = os.getenv("QDRANT_HOST")
 
+# Check if GPU is available and set device accordingly
+if torch.cuda.is_available():
+    device = 0  # Use GPU
+    print("Using GPU for text generation.")
+else:
+    device = -1 # Use CPU
+    print("Using CPU for text generation.")
+
 # Create pipeline for text generation using HuggingFace token
 tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-rw-1b") #token=hf_token)
 model = AutoModelForCausalLM.from_pretrained("tiiuae/falcon-rw-1b") #token=hf_token)
-text_gen_pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer, device=0)
+text_gen_pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer, device=device)
 
 # Initialize Qdrant client for Docker 
 qdrant_client = QdrantClient(

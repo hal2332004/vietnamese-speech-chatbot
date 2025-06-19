@@ -1,21 +1,16 @@
 version: '3.9'
-
 services:
   chatbot-app:
     build: .
+    env_file:
+      - .env
     environment:
       - HF_HOME=/workspace/hf_cache
+      - NVIDIA_VISIBLE_DEVICES=all
     volumes:
       - "/home/ubuntu/hf_cache:/workspace/hf_cache"
       - ./temp:/app/temp
     container_name: chatbot-service
     ports:
       - "8000:8000"
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
     runtime: nvidia
