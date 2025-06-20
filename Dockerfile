@@ -1,11 +1,18 @@
-# Use the official Python 3.11 slim image as the base image
-FROM python:3.11-slim
+# Dockerfile for a FastAPI application with NVIDIA CUDA support and ffmpeg installed
+# Base image with NVIDIA CUDA runtime for Ubuntu 22.04
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
 
 # Set the working directory inside the container to /app
 WORKDIR /app
 
-# Install ffmpeg
-RUN apt-get update && apt-get install -y ffmpeg && apt-get clean
+# Install Python + pip
+RUN apt-get update && \
+    apt-get install -y python3.11 python3.11-venv python3-pip ffmpeg && \
+    apt-get clean
+
+# Symlink python3.11 -> python
+RUN ln -sf /usr/bin/python3.11 /usr/bin/python && \
+    ln -sf /usr/bin/pip3 /usr/bin/pip
 
 # Copy the requirements.txt file into the container at /app
 COPY requirements.txt .

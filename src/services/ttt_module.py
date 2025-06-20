@@ -11,12 +11,12 @@ warnings.filterwarnings("ignore")
 # Load environment variables from .env file
 load_dotenv()
 
-# Get GEMINI API key from environment variable
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
 # Get QDRANT API key and host from environment variables
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_HOST = os.getenv("QDRANT_HOST")
+
+# Get HuggingFace token from environment variable
+hf_token = os.getenv("HUGGINGFACE_TOKEN")
 
 # Check if GPU is available and set device accordingly
 if torch.cuda.is_available():
@@ -27,8 +27,8 @@ else:
     print("Using CPU for text generation.")
 
 # Create pipeline for text generation using HuggingFace token
-tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-rw-1b") #token=hf_token)
-model = AutoModelForCausalLM.from_pretrained("tiiuae/falcon-rw-1b") #token=hf_token)
+tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1", token=hf_token)
+model = AutoModelForCausalLM.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1", token=hf_token)
 text_gen_pipeline = pipeline("text-generation", model=model, tokenizer=tokenizer, device=device)
 
 # Initialize Qdrant client for Docker 
@@ -46,7 +46,7 @@ embedding_model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
 
 # Qdrant search function to retrieve context based on a question
 @timeit("LLM: Qdrant Search")
-def get_context(question, k=29):
+def get_context(question, k=5):
     """
     Retrieve context from Qdrant based on the question.
     
@@ -87,7 +87,7 @@ def generate_answer(question):
     if len(prompt) > max_prompt_length:
         prompt = prompt[:max_prompt_length]
 
-    response = text_gen_pipeline(prompt, max_new_tokens=256, do_sample=True, temperature=0.7)
+    response = text_gen_pipeline(prompt, max_new_tokens=128, do_sample=True, temperature=0.7)
     answer = response[0]['generated_text'].strip()
     print("🤖 Chatbot Answer:\n", answer)
     return answer
