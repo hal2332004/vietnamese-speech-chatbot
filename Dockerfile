@@ -5,10 +5,11 @@ FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
 # Set the working directory inside the container to /app
 WORKDIR /app
 
-# Install Python + pip
+# Install Python + pip 
 RUN apt-get update && \
-    apt-get install -y python3.11 python3.11-venv python3-pip ffmpeg && \
-    apt-get clean
+    apt-get install -y python3.11 python3.11-venv python3-pip ffmpeg \
+                       build-essential cmake libasound2-dev libsndfile1 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Symlink python3.11 -> python
 RUN ln -sf /usr/bin/python3.11 /usr/bin/python && \
@@ -16,6 +17,9 @@ RUN ln -sf /usr/bin/python3.11 /usr/bin/python && \
 
 # Copy the requirements.txt file into the container at /app
 COPY requirements.txt .
+
+# Install PyTorch with CUDA support
+RUN pip install --no-cache-dir torch==2.1.0
 
 # Install Python dependencies from requirements.txt without using cache
 RUN pip install --no-cache-dir -r requirements.txt

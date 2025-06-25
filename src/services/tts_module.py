@@ -18,6 +18,6 @@ def tts_generate(text, output_path):
         str: Path to the saved audio file.
     """
 
-    tts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2")
+    tts = TTS(model_name="anhtp27/viet-tts-hifigan")
     tts.tts_to_file(text=text, file_path=output_path)
     return output_path

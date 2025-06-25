@@ -10,4 +10,4 @@ google-genai==1.19.0
 fastapi==0.110.0
 uvicorn==0.29.0
 python-multipart==0.0.9
-tts==0.16.0
+tts==0.22.0
