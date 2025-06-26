@@ -18,9 +18,6 @@ RUN ln -sf /usr/bin/python3.11 /usr/bin/python && \
 # Copy the requirements.txt file into the container at /app
 COPY requirements.txt .
 
-# Install PyTorch with CUDA support
-RUN pip install --no-cache-dir torch==2.1.0
-
 # Install Python dependencies from requirements.txt without using cache
 RUN pip install --no-cache-dir -r requirements.txt
 
