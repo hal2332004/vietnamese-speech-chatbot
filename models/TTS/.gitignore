@@ -1,0 +1,14 @@
+.venv/
+hub/
+*.pth
+__pycache__/
+checkpoints/
+datasets/
+large-datasets/
+wandb/
+# *.ipynb
+# *.wav
+test.py
+cps/
+vivoice-datasets/
+output/
