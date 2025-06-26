@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voice Chatbot</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+          <div class="chat-title">
+            <h1>VoiceAi</h1>
+          </div>
+            <button class="new-chat-btn" id="newChatBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                </svg>
+                Cuộc trò chuyện mới
+            </button>
+            <nav class="chat-list-nav">
+                <p class="chat-list-header">Gần đây</p>
+                <ul class="chat-list" id="chatList">
+                    </ul>
+            </nav>
+        </div>
+
+        <div class="chat-area">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <h1 id="chatTitle">🎙️ Voice Assistant</h1>
+                </div>
+                <div class="chat-actions">
+                    <button class="action-btn" id="deleteCurrentChatBtn">Xóa cuộc trò chuyện này</button>
+                </div>
+            </div>
+
+            <div class="chat-container" id="chatContainer">
+                </div>
+
+            <div class="input-container">
+                <div class="input-section">
+                    <div class="audio-upload-section">
+                        <button class="audio-upload-btn" id="audioUploadBtn">🎵 Tải File</button>
+                        <button class="audio-upload-btn" id="recordBtn">🎙️ Ghi Âm</button>
+                        <div class="upload-info" id="uploadInfo">Chọn file hoặc bắt đầu ghi âm</div>
+                        <input type="file" id="audioFile" class="file-input" accept="audio/*">
+                    </div>
+                    <div class="text-input-section">
+                        <textarea class="input-field" id="messageInput" placeholder="Nhập tin nhắn ở đây..." rows="1"></textarea>
+                        <button class="send-btn" id="sendBtn" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M13 18V9.91l3.29 3.3 1.42-1.42L12 6.09l-5.71 5.7 1.42 1.42L11 9.91V18z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

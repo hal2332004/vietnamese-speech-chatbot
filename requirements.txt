@@ -1,0 +1,15 @@
+sounddevice==0.5.2
+scipy==1.9.3
+transformers==4.40.1
+qdrant-client==1.8.0
+python-dotenv==1.1.0
+sentence-transformers==2.7.0
+accelerate==0.26.0
+torch==2.1.0
+google-genai==1.19.0
+fastapi==0.110.0
+uvicorn==0.29.0
+python-multipart==0.0.9
+f5-tts==0.1.0
+librosa==0.10.0
+vinorm==0.1.0
