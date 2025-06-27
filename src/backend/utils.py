@@ -3,15 +3,14 @@ from scipy.io.wavfile import write
 from transformers import pipeline
 import asyncio
 import os
-# from playsound import playsound
 import librosa
-# import soundfile as sf
 import torch
 import time
 from functools import wraps
 import warnings
+import requests
+from requests.exceptions import Timeout
 
-secret_key = os.getenv("SECRET_KEY")
 
 warnings.filterwarnings("ignore")
 
@@ -28,43 +27,29 @@ def timeit(module_name=""):
         return wrapper
     return decorator
 
-# def record_audio_local(filename="audio.wav", duration=10, samplerate=44100):
-#     print("Start recording...")
-#     recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype='int16')
-#     sd.wait()
-#     write(filename, samplerate, recording)
-#     print(f"Recording saved to {filename}")
-
-# STT using Google Gemini API
-def gemini_stt(audio_path: str, secret_key: str = None):
-    from google import genai
-    client = genai.Client(api_key=secret_key)
-
-    uploaded_file = client.files.upload(file=audio_path)
-
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=[
-            "Trích xuất văn bản tiếng Việt từ audio tôi cung cấp",
-            uploaded_file
+def llama_cpp_chat(prompt, server_url="http://localhost:8080/v1/chat/completions"):
+    """
+    Gọi llama.cpp server (OpenAI API style endpoint /v1/chat/completions).
+    """
+    payload = {
+        "model": "llama",  # adjust if your server expects a model name
+        "messages": [
+            {"role": "user", "content": prompt}
         ]
-    )
-
-    print("Văn bản trích xuất:")
-    print(response.text)
-
-    token_info = client.models.count_tokens(
-        model="gemini-2.0-flash",
-        contents=[uploaded_file]
-    )
-
-    print("\nThông tin token:")
-    print(token_info)
-
-    return response.text, token_info
+    }
+    try:
+        resp = requests.post(server_url, json=payload, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        # OpenAI-style: answer is in choices[0]['message']['content']
+        return data["choices"][0]["message"]["content"]
+    except Timeout:
+        return "❌ Lỗi llama.cpp: Server không phản hồi (timeout). Vui lòng kiểm tra lại server hoặc thử lại sau."
+    except Exception as e:
+        return f"❌ Lỗi llama.cpp: {e}"
 
 class SmartChabot:
-    def __init__(self, qdrant_client, collection_name, embedding_model, model, tokenizer, gemini_model="models/gemini-2.0-flash-exp"):
+    def __init__(self, qdrant_client, collection_name, embedding_model, llama_server_url="http://localhost:8080/v1/chat/completions"):
         self.qdrant_client = qdrant_client
         self.collection_name = collection_name
         
@@ -73,11 +58,12 @@ class SmartChabot:
         self.embedding_model = embedding_model.to(self.device)
         print(f"📢 Embedding model running on: {self.device}")
         
-        self.gemini_model = gemini_model
-        self.model = model
-        self.tokenizer = tokenizer
+        # self.gemini_model = gemini_model
+        # self.model = model
+        # self.tokenizer = tokenizer
+        self.llama_server_url = llama_server_url
 
-    def get_context_from_qdrant(self, question, k=3):
+    def get_context_from_qdrant(self, question, k=2):
         # Ensure input is on the same device as the model
         with torch.amp.autocast(device_type='cuda'):
             embedding = self.embedding_model.encode(
@@ -92,118 +78,30 @@ class SmartChabot:
             limit=k,
             with_payload=True
         )
-        context = "\n".join([point.payload.get("văn bản", "") for point in response])
+        context = "\n".join([point.payload.get("text", "") for point in response])
+
+        # test
+        for i, point in enumerate(response, 1):
+            context_text = point.payload.get("text", "")
+            print(f"\n--- Context #{i} ---\n{context_text}")
+
         return context
 
-    async def local_answer_question(self, question: str) -> str:
+    async def llama_cpp_answer_question(self, question: str) -> str:
         try:
             context = self.get_context_from_qdrant(question)
             prompt = (
-                f"Bạn là một trợ lý thông minh và có tính hài hước, hãy trả lời câu hỏi sau dựa trên ngữ cảnh.\n"
-                f"Câu hỏi: {question}\n\n"
-                f"- Ngữ cảnh truy xuất từ cơ sở dữ liệu:\n{context}\n\n"
-                f"Trả lời câu hỏi một cách chi tiết và đầy đủ. Sử dụng ngôn ngữ thuần Việt, "
-                f"không chứa các ký tự đặc biệt, không dùng định dạng Markdown hay các ký hiệu như **, *, `, ~, _, #, >, hoặc các dấu câu lặp lại.\n"
-                f"Câu trả lời chỉ là văn bản thuần, dễ đọc, phù hợp để sử dụng trong Text-to-Speech.\n"
-                f"Hãy đảm bảo giải thích rõ ràng và cung cấp thêm thông tin hữu ích nếu có.\n"
+                "Chú ý các yêu cầu sau:\n"
+                "- Câu trả lời phải chính xác và đầy đủ nếu ngữ cảnh có câu trả lời.\n"
+                "- Chỉ sử dụng các thông tin có trong ngữ cảnh được cung cấp.\n"
+                "- Chỉ cần từ chối trả lời và không suy luận gì thêm nếu ngữ cảnh không có câu trả lời.\n\n"
+                "Hãy trả lời câu hỏi dựa trên ngữ cảnh dưới đây.\n\n"
+                f"### Ngữ cảnh:\n{context}\n\n"
+                f"### Câu hỏi:\n{question}\n\n"
+                "### Trả lời:"
             )
-
-            inputs = self.tokenizer(prompt, return_tensors="pt").to("cuda")
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=512,  # Increased from 180 to 512
-                min_new_tokens=100,  # Add minimum tokens to ensure longer responses
-                do_sample=True,
-                temperature=0.7,    # Adjust temperature for more natural responses
-                top_p=0.92,         # Slightly increased for more variety
-                top_k=50,          # Increased from 10 to 50 for more diverse vocabulary
-                repetition_penalty=1.2  # Add repetition penalty to avoid repetitive text
-            )
-            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
-            return response.strip()
+            # Gọi llama.cpp server
+            answer = llama_cpp_chat(prompt, server_url=self.llama_server_url)
+            return answer.strip()
         except Exception as e:
-            return f"❌ Error: {e}"        
-    
-    async def gemini_answer_question(self, question: str) -> str:
-        import google.generativeai as genai
-        genai.configure(api_key=secret_key)
-        
-        try:
-            context = self.get_context_from_qdrant(question)
-            prompt = (
-                f"Bạn là một trợ lý thông minh và có tính hài hước, hãy trả lời câu hỏi sau dựa trên ngữ cảnh.\n"
-                f"- Ngữ cảnh truy xuất từ cơ sở dữ liệu:\n{context}\n\n"
-                f"Yêu cầu:\n"
-                f"1. Trả lời câu hỏi một cách chi tiết và đầy đủ\n"
-                f"2. Giải thích rõ ràng và đưa ra ví dụ cụ thể nếu cần\n"
-                f"3. Cung cấp thêm thông tin hữu ích liên quan\n"
-                f"4. Sử dụng ngôn ngữ thuần Việt, tự nhiên và dễ hiểu\n"
-                f"5. Không sử dụng ký tự đặc biệt hoặc định dạng markdown\n"
-                f"6. Đảm bảo câu trả lời dễ đọc, phù hợp để sử dụng trong Text-to-Speech\n"
-                f"7. Không chứa các ký tự đặc biệt, không dùng định dạng Markdown hay các ký hiệu như **, *, `, ~, _, #, >, hoặc các dấu câu lặp lại.\n\n"
-                f"Câu hỏi: {question}\n\n"
-            )
-
-            model = genai.GenerativeModel(self.gemini_model)
-            
-            # Configure generation parameters
-            generation_config = {
-                "temperature": 0.7,
-                "top_p": 0.92,
-                "top_k": 50,
-                "max_output_tokens": 1024,  # Increased token limit
-            }
-            
-            response = model.generate_content(
-                prompt,
-                generation_config=generation_config
-            )
-            return response.text.strip()
-        except Exception as e:
-            return f"❌ Error: {e}"
-
-def print_gemini_api_remaining_calls(project_id, quota_metric="serving_requests_per_day"):
-    """
-    Print out the remaining Gemini API calls for today.
-    Args:
-        project_id (str): Your Google Cloud project ID.
-        quota_metric (str): The quota metric to check. Default is 'serving_requests_per_day'.
-    """
-    from google.cloud import monitoring_v3
-    import datetime
-
-    client = monitoring_v3.MetricServiceClient()
-    project_name = f"projects/{project_id}"
-
-    # The metric type for Gemini API quota (may need to adjust for your use case)
-    metric_type = f"serving.googleapis.com/{quota_metric}"
-
-    now = datetime.datetime.utcnow()
-    interval = monitoring_v3.TimeInterval(
-        end_time=now,
-        start_time=now - datetime.timedelta(days=1)
-    )
-
-    results = client.list_time_series(
-        request={
-            "name": project_name,
-            "filter": f'metric.type = "{metric_type}"',
-            "interval": interval,
-            "view": monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
-        }
-    )
-
-    for result in results:
-        # The quota limit and usage are in the resource labels or points
-        points = result.points
-        if points:
-            used = points[0].value.int64_value
-            limit = int(result.metric.labels.get("quota_limit", 0))
-            remaining = limit - used
-            print(f"Gemini API calls used today: {used}")
-            print(f"Gemini API daily quota: {limit}")
-            print(f"Gemini API calls remaining today: {remaining}")
-            return remaining
-    print("No quota usage data found for Gemini API.")
-    return None
+            return f"❌ Lỗi llama.cpp: {e}"

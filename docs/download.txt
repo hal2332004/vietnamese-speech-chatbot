@@ -1,0 +1,94 @@
+git clone https://github.com/ggml-org/llama.cpp.git
+
+apt install nvidia-cuda-toolkit
+sudo apt install cmake
+sudo apt install libcurl4-openssl-dev
+wget https://huggingface.co/uonlp/Vistral-7B-Chat-gguf/resolve/main/Vistral-7B-Chat-q4_0.gguf -O Vistral-7B-Chat-q4_0.gguf
+pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu125
+sudo apt remove --purge cuda-toolkit-12-5
+find /usr/local -name nvcc
+/usr/local/cuda-12.5/bin/nvcc
+export PATH=/usr/local/cuda-12.5/bin:$PATH
+nvcc --version
+CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu125
+
+
+./llama.cpp/build/bin/llama-server -hf ngxson/Vintern-1B-v3_5-GGUF --chat-template vicuna -ngl 99
+
+\\wsl$\Ubuntu\root\.cache
+ pip install fastapi uvicorn python-multipart
+npm install react-type-animation
+
+
+ollama run hf.co/mradermacher/Vi-Qwen2-3B-RAG-GGUF:Q8_0
+
+Run demo DAT: 
+cd models
+./llama.cpp/build/bin/llama-server -hf ngxson/Vintern-1B-v3_5-GGUF --chat-template vicuna -ngl 99
+cd models/TTS -> python main.py
+UI: npm run dev
+
+
+git clone https://github.com/ggerganov/llama.cpp
+cd llama.cpp
+mkdir build
+cd build
+cmake .. -DLLAMA_BUILD_SERVER=ON
+cmake --build . --config Release
+
+cmake .. -DLLAMA_CUDA=on -DLLAMA_BUILD_SERVER=ON
+nvidia-smi
+
+nvcc --version         which nvcc
+sudo apt update
+sudo apt install nvidia-cuda-toolkit
+
+for quadro p2000: cmake .. -DGGML_CUDA=on -DLLAMA_BUILD_SERVER=on -DCMAKE_CUDA_ARCHITECTURES=61
+		  cmake --build . --config Release
+
+
+sudo apt remove --purge nvidia-cuda-toolkit
+sudo apt autoremove
+sudo apt install cuda-toolkit-11-8
+
+***fix lỗi nvcc --version không nhận cuda:
+ls /usr/local | grep cuda
+
+echo 'export PATH=/usr/local/cuda-11.8/bin:$PATH' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH' >> ~/.bashrc
+source ~/.bashrc
+
+echo 'export PATH=/usr/local/cuda-11.8/bin:$PATH' >> ~/.zshrc
+echo 'export LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH' >> ~/.zshrc
+source ~/.zshrc
+
+nvcc --version
+____
+cmake -B build -DGGML_CUDA=on
+cmake --build build --config Release 
+
+D:\Ky 4\vietnamese-speech-chatbox\models\llama.cpp\build\bin
+export PATH=$PATH:/mnt/d/Ky\ 4/vietnamese-speech-chatbox/models/llama.cpp/build/bin
+llama-cli 
+llama-cli --model Vi-Qwen2-3B-RAG.Q8_0.gguf -cnv -c 16384 
+./llama-server -m Vi-Qwen2-3B-RAG.Q8_0.gguf --chat-template vicuna -ngl 32
+root@hal2332004:/mnt/d/Ky 4/vietnamese-speech-chatbox/models/llama.cpp/build/bin# ./llama-server -m Vi-Qwen2-3B-RAG.Q8_0.gguf -ngl 128
+
+nproc
+cmake -B build -DGGML_CUDA=on -DLLAMA_JINJA=on
+cmake --build build --config Release -j6
+cmake --build build --config Release -j$(nproc)
+
+template = '''Chú ý các yêu cầu sau:
+- Câu trả lời phải chính xác và đầy đủ nếu ngữ cảnh có câu trả lời. 
+- Chỉ sử dụng các thông tin có trong ngữ cảnh được cung cấp.
+- Chỉ cần từ chối trả lời và không suy luận gì thêm nếu ngữ cảnh không có câu trả lời.
+Hãy trả lời câu hỏi dựa trên ngữ cảnh:
+### Ngữ cảnh :
+{context}
+
+### Câu hỏi :
+{question}
+
+### Trả lời :'''
+/file/d/17VjNmB4vIOHa8b50tfT8Vw6UGE1Ul7W7/

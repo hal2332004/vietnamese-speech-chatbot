@@ -9,7 +9,10 @@ load_dotenv()
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_HOST = os.getenv("QDRANT_HOST")
 
-model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
+# model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
+# print("Model size embedding:", model.get_sentence_embedding_dimension())
+
+model = SentenceTransformer("Alibaba-NLP/gte-multilingual-base", trust_remote_code=True)
 print("Model size embedding:", model.get_sentence_embedding_dimension())
 
 qdrant_client = QdrantClient(
@@ -17,7 +20,7 @@ qdrant_client = QdrantClient(
     url = QDRANT_HOST, 
     https = True,  
 )
-collection_name = "syllabus_embeddings"
+collection_name = "syllabus_embeddings_gte"
 
 # Xóa collection nếu đã tồn tại
 if qdrant_client.collection_exists(collection_name):
@@ -34,6 +37,8 @@ if not qdrant_client.collection_exists(collection_name):
 
 csv_path = "../../data/Giáo trình môn học FPT 2 - syllabus_data_format.csv"
 df = pd.read_csv(csv_path)
+print(df.head())
+
 if "Văn bản" not in df.columns:
     raise ValueError("CSV không có cột 'Văn bản'.")
 
