@@ -1,81 +1,205 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 3D Perspective and Transform Utilities */
-.perspective-1000 {
-  perspective: 1000px;
+/* Custom CSS Variables for Vintage Theme */
+:root {
+  --vintage-cream: #F5F5DC;
+  --vintage-sepia: #8B4513;
+  --vintage-sage: #9CAF88;
+  --vintage-gold: #DAA520;
+  --vintage-brown: #8B4513;
+  --vintage-tan: #D2B48C;
 }
 
-.preserve-3d {
+/* Custom styles for vintage aesthetic */
+body {
+  font-family: 'Inter', 'Georgia', serif;
+  line-height: 1.6;
+  color: #44403C;
+  background-color: #FAFAF9;
+}
+
+.dark body {
+  color: #F5F5F4;
+  background-color: #1C1917;
+}
+
+/* Vintage-inspired scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #E7E5E4;
+  border-radius: 10px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #44403C;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, #D97706, #F59E0B);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, #B45309, #D97706);
+}
+
+/* Vintage text selection */
+::selection {
+  background-color: #FED7AA;
+  color: #92400E;
+}
+
+.dark ::selection {
+  background-color: #92400E;
+  color: #FED7AA;
+}
+
+/* Custom vintage shadows */
+.vintage-shadow {
+  box-shadow: 0 4px 20px rgba(139, 69, 19, 0.15);
+}
+
+.dark .vintage-shadow {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Vintage button hover effects */
+.vintage-button {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.vintage-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.vintage-button:hover::before {
+  left: 100%;
+}
+
+/* Vintage typography */
+.font-serif {
+  font-family: 'Crimson Text', 'Georgia', serif;
+}
+
+.font-sans {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Vintage input focus effects */
+input:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
+}
+
+.dark input:focus, .dark textarea:focus {
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
+}
+
+/* Vintage animations */
+@keyframes vintage-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.vintage-pulse {
+  animation: vintage-pulse 2s infinite;
+}
+
+/* Vintage gradient text */
+.vintage-gradient-text {
+  background: linear-gradient(45deg, #D97706, #F59E0B, #FBBF24);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Vintage glass effect */
+.vintage-glass {
+  background: rgba(245, 245, 244, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(245, 245, 244, 0.2);
+}
+
+.dark .vintage-glass {
+  background: rgba(41, 37, 36, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(68, 64, 60, 0.3);
+}
+
+/* Vintage card hover effects */
+.vintage-card {
+  transition: all 0.3s ease;
   transform-style: preserve-3d;
 }
 
-.rotate-y-12 {
-  transform: rotateY(12deg);
+.vintage-card:hover {
+  transform: translateY(-5px) rotateX(5deg);
+  box-shadow: 0 20px 40px rgba(139, 69, 19, 0.2);
 }
 
-/* Custom 3D Animations */
-@keyframes float-slow {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
+.dark .vintage-card:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Vintage loading animation */
+.vintage-loading {
+  background: linear-gradient(45deg, #D97706, #F59E0B);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: vintage-pulse 1.5s infinite;
+}
+
+/* Responsive typography */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
   }
-  50% {
-    transform: translateY(-10px) rotate(5deg);
+  
+  h1 {
+    font-size: 1.5rem;
   }
-}
-
-@keyframes float-delayed {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-15px) rotate(-5deg);
-  }
-}
-
-@keyframes float-reverse {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(8px) rotate(3deg);
-  }
-}
-
-.animate-float-slow {
-  animation: float-slow 6s ease-in-out infinite;
-}
-
-.animate-float-delayed {
-  animation: float-delayed 8s ease-in-out infinite 2s;
-}
-
-.animate-float-reverse {
-  animation: float-reverse 7s ease-in-out infinite 1s;
-}
-
-/* Enhanced 3D Hover Effects */
-.group:hover .preserve-3d {
-  transform: rotateY(12deg) scale(1.05);
-}
-
-/* Backdrop Blur Support */
-.backdrop-blur-sm {
-  backdrop-filter: blur(4px);
-}
-
-/* Custom Gradient Animations */
-@keyframes gradient-shift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
+  
+  h2 {
+    font-size: 1.25rem;
   }
 }
 
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradient-shift 8s ease infinite;
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .vintage-button {
+    border: 2px solid currentColor;
+  }
 }

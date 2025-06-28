@@ -2,11 +2,7 @@ import React from 'react';
 import VoiceChatBot from './components/VoiceChatBot';
 
 function App() {
-  return (
-    <div className="App">
-      <VoiceChatBot />
-    </div>
-  );
+  return <VoiceChatBot />;
 }
 
 export default App;

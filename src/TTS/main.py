@@ -219,21 +219,16 @@ async def text_to_speech_file(request: TTSRequest):
         print(f"Error in TTS: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/health", response_model=HealthResponse)
-async def health_check():
-    return HealthResponse(
-        status="healthy",
-        model_loaded=XTTS_MODEL is not None
-    )
+# @app.get("/health", response_model=HealthResponse)
+# async def health_check():
+#     return HealthResponse(
+#         status="healthy",
+#         model_loaded=XTTS_MODEL is not None
+#     )
 
 @app.get("/")
-async def root():
-    return {
-        "message": "Vietnamese TTS API",
-        "version": "1.0.0",
-        "docs": "/docs",
-        "health": "/health"
-    }
+def health_check():
+    return {"status": "ok"}
 
 if __name__ == '__main__':
     uvicorn.run(

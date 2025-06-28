@@ -69,9 +69,13 @@ async def stt_api(
     finally:
         os.remove(tmp_path)
 
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
+
 if __name__ == '__main__':
     uvicorn.run(
-        "fastapi_gemini_stt:app", 
+        "main:app", 
         host="0.0.0.0",
         port=12345,
         reload=True,

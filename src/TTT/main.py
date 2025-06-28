@@ -46,6 +46,9 @@ async def ask_stream(request: AskRequest):
             await asyncio.sleep(0.05)  # simulate streaming
     return StreamingResponse(word_stream(), media_type="text/plain")
 
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
 
 if __name__ == '__main__':
     uvicorn.run(

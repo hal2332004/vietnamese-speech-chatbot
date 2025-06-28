@@ -11,28 +11,53 @@ import logging
 from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
+
 from transformers import pipeline
 import asyncio
 import os
 import torch
+import time
+from functools import wraps
+import warnings
 import requests
 from requests.exceptions import Timeout
 import httpx
 import json
-from utils import timeit
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
 
-TTS_URL = "http://localhost:5000/tts"
-load_dotenv()
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-QDRANT_HOST = os.getenv("QDRANT_HOST")
-embedding_model = SentenceTransformer('Alibaba-NLP/gte-multilingual-base', trust_remote_code=True)
-qdrant_client = QdrantClient(
-    api_key=QDRANT_API_KEY, 
-    url=QDRANT_HOST, 
-    https=True,
-)
+warnings.filterwarnings("ignore")
+def timeit(module_name=""):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            result = func(*args, **kwargs)
+            end = time.time()
+            duration = end - start
+            print(f"⏱️ [{module_name}] hoàn thành trong {duration:.2f} giây.")
+            return result
+        return wrapper
+    return decorator
+
+@timeit("llama_cpp_chat_stream")
+async def llama_cpp_chat_stream(prompt, server_url="http://localhost:8080/v1/chat/completions"):
+    payload = {
+        "model": "Vi-Qwen2-3B-RAG.Q8_0.gguf",
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": True
+    }
+    async with httpx.AsyncClient(timeout=120) as client:
+        async with client.stream("POST", server_url, json=payload) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    data = line.removeprefix("data: ").strip()
+                    if data and data != "[DONE]":
+                        try:
+                            obj = json.loads(data)
+                            content = obj["choices"][0]["delta"].get("content", "")
+                            if content:
+                                yield content
+                        except Exception:
+                            continue
 
 class SmartChabot:
     @timeit("SmartChabot.__init__")
@@ -45,7 +70,7 @@ class SmartChabot:
         self.embedding_model = embedding_model.to(self.device)
         print(f"📢 Embedding model running on: {self.device}")
         
-        self.llama_server_url = llama_server_url.strip()  # Đảm bảo không có ký tự lạ
+        self.llama_server_url = llama_server_url
 
     @timeit("SmartChabot.get_context_from_qdrant")
     def get_context_from_qdrant(self, question, k=3):
@@ -72,62 +97,21 @@ class SmartChabot:
 
         return context
 
-    @timeit("llama_cpp_chat_stream")
-    async def llama_cpp_chat_stream(self, prompt):
-        server_url = self.llama_server_url  # Đã được strip ở __init__
-        payload = {
-            "model": "Vi-Qwen2-3B-RAG.Q8_0.gguf",
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": True
-        }
-        async with httpx.AsyncClient(timeout=120) as client:
-            async with client.stream("POST", server_url, json=payload) as response:
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data = line.removeprefix("data: ").strip()
-                        if data and data != "[DONE]":
-                            try:
-                                obj = json.loads(data)
-                                content = obj["choices"][0]["delta"].get("content", "")
-                                if content:
-                                    yield content
-                            except Exception:
-                                continue
-
-    def is_in_domain(self, question, threshold=0.7, k=3):
-        """
-        Trả về True nếu câu hỏi thuộc in-domain (cosine similarity với knowledge base >= threshold)
-        """
-        # Lấy embedding của câu hỏi
-        with torch.amp.autocast(device_type='cuda'):
-            question_emb = self.embedding_model.encode(
-                f"Tài liệu để truy xuất: {question}",
-                convert_to_tensor=True,
-                device=self.device
-            ).cpu().numpy().reshape(1, -1)
-        # Lấy top-k context từ Qdrant
-        response = self.qdrant_client.search(
-            collection_name=self.collection_name,
-            query_vector=question_emb.flatten().tolist(),
-            limit=k,
-            with_vectors=True,
-            with_payload=True
-        )
-        # Lấy embedding của các context
-        kb_embs = []
-        for point in response:
-            if hasattr(point, "vector"):
-                kb_embs.append(point.vector)
-            elif "vector" in point.__dict__:
-                kb_embs.append(point.__dict__["vector"])
-        if not kb_embs:
-            return False
-        kb_embs = np.array(kb_embs)
-        # Tính cosine similarity
-        sims = cosine_similarity(question_emb, kb_embs)[0]
-        max_sim = np.max(sims)
-        return max_sim >= threshold
-
+    # @timeit("SmartChabot.llama_cpp_answer_question")
+    # async def llama_cpp_answer_question(self, question: str) -> str:
+    #     try:
+    #         context = self.get_context_from_qdrant(question)
+    #         prompt = (
+    #             "Hãy trả lời câu hỏi dựa trên ngữ cảnh dưới đây.\n\n"
+    #             f"Ngữ cảnh:\n{context}\n\n"
+    #             f"Câu hỏi:\n{question}\n\n"
+    #         )
+    #         # Gọi llama.cpp server
+    #         answer = llama_cpp_chat(prompt, server_url=self.llama_server_url)
+    #         return answer.strip()
+    #     except Exception as e:
+    #         return f"❌ Lỗi llama.cpp: {e}"
+        
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -161,6 +145,17 @@ def gemini_stt(audio_path: str, secret_key: str = None, model: str = "gemini-2.0
 
     return response.text, token_info
 
+TTS_URL = "http://localhost:5000/tts"
+
+load_dotenv()
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_HOST = os.getenv("QDRANT_HOST")
+embedding_model = SentenceTransformer('Alibaba-NLP/gte-multilingual-base', trust_remote_code=True)
+qdrant_client = QdrantClient(
+    api_key=QDRANT_API_KEY, 
+    url=QDRANT_HOST, 
+    https=True,
+)
 collection_name = "syllabus_embeddings_gte"
 chatbot = SmartChabot(qdrant_client, collection_name, embedding_model)
 
@@ -298,29 +293,25 @@ async def chat_text_stream(request: dict):
         raise HTTPException(status_code=400, detail="Question is required")
 
     context = chatbot.get_context_from_qdrant(question)
-    in_domain = chatbot.is_in_domain(question)
-    print(f"in_domain: {in_domain}...")  
-    # Đảm bảo không truyền URL có ký tự lạ (nếu có custom server_url thì .strip())
-    if in_domain:
-        prompt_indomain = (
-            "Hãy trả lời câu hỏi dựa trên ngữ cảnh dưới đây.\n\n"
-            f"Ngữ cảnh:\n{context}\n\n"
-            f"Câu hỏi:\n{question}\n\n"
-        )
-        return StreamingResponse(
-            chatbot.llama_cpp_chat_stream(prompt_indomain), 
-            media_type="text/plain"
-        )
-    else:
-        prompt_outdomain = (
-            "Hãy trả lời câu hỏi sau.\n\n"
-            f"Câu hỏi:\n{question}\n\n"
-        )
-        return StreamingResponse(
-            chatbot.llama_cpp_chat_stream(prompt_outdomain), 
-            media_type="text/plain"
-        )
+    # prompt = (
+    #     "Hãy trả lời câu hỏi dựa trên ngữ cảnh dưới đây, nếu ngữ cảnh.\n\n"
+    #     "Nếu ngữ cảnh không liên quan đến câu hỏi, bạn có thể trả lời dựa trên kiến thức của mình, mà không cần thông báo rằng ngữ cảnh không phù hợp.\n\n"
+    #     f"Ngữ cảnh:\n{context}\n\n"
+    #     f"Câu hỏi:\n{question}\n\n"
+    # )
 
+    prompt = (
+        "Bạn là một trợ lý AI thân thiện và súc tích. Hãy trả lời CÂU HỎI bên dưới.\n"
+        "Nếu NGỮ CẢNH chứa thông tin phù hợp, hãy sử dụng nó.\n"
+        "Nếu không, hãy trả lời ngay dựa trên kiến thức của bạn — KHÔNG cần nói về ngữ cảnh.\n"
+        "Không cần nói 'dựa trên ngữ cảnh' hay 'ngữ cảnh không liên quan'. Trả lời trực tiếp.\n\n"
+        f"NGỮ CẢNH:\n{context}\n\n"
+        f"CÂU HỎI:\n{question}\n\n"
+        "TRẢ LỜI:"
+    )
+
+    # Không await ở đây, chỉ return generator
+    return StreamingResponse(llama_cpp_chat_stream(prompt), media_type="text/plain")
 
 if __name__ == "__main__":
     import uvicorn
