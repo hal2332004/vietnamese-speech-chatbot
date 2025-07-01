@@ -8,6 +8,6 @@ __pycache__/
 *.wav
 *.safetensors
 *.mp3
-
+*.pth
 notebooks/viF5TTS/
 models/llama.cpp

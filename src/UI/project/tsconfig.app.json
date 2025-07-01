@@ -22,3 +22,5 @@
   },
   "include": ["src"]
 }
+
+// npm install --save-dev @types/babel__generator @types/babel__template @types/babel__traverse @types/prop-types

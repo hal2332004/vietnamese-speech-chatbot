@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Send, Volume2, Loader2, MessageCircle, Zap, AlertCircle, Type, Moon, Sun, Coffee, Book, Sparkles, Heart } from 'lucide-react';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { useTheme } from '../hooks/useTheme';
+import FPTLogo  from './FPTlogo.svg';
 
 interface ChatMessage {
   id: string;
@@ -23,7 +24,6 @@ type ActiveTab = 'chat' | 'about' | 'features' | 'contact';
 const VoiceChatBot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatState, setChatState] = useState<ChatState>({ status: 'idle' });
-  const [isPlaying, setIsPlaying] = useState(false);
   const [chatMode, setChatMode] = useState<ChatMode>('voice');
   const [textInput, setTextInput] = useState('');
   const [activeTab, setActiveTab] = useState<ActiveTab>('chat');
@@ -42,7 +42,7 @@ const VoiceChatBot: React.FC = () => {
 
   // Handle recording completion
   useEffect(() => {
-    if (audioBlob && !isRecording) {
+    if (audioBlob && !isRecording && audioBlob.size > 0) {
       const url = URL.createObjectURL(audioBlob);
       setRecordedAudioUrl(url);
       handleSendVoiceMessage(audioBlob);
@@ -54,6 +54,7 @@ const VoiceChatBot: React.FC = () => {
     
     try {
       const formData = new FormData();
+      // Use WAV file and correct MIME type
       const audioFile = new File([blob], 'recording.wav', { type: 'audio/wav' });
 
       formData.append('file', audioFile);
@@ -189,7 +190,6 @@ const VoiceChatBot: React.FC = () => {
   };
 
   const handleAudioEnd = () => {
-    setIsPlaying(false);
     setChatState({ status: 'idle' });
   };
 
@@ -197,7 +197,6 @@ const VoiceChatBot: React.FC = () => {
     if (audioPlayerRef.current) {
       audioPlayerRef.current.src = audioUrl;
       audioPlayerRef.current.play();
-      setIsPlaying(true);
     }
   };
 
@@ -426,21 +425,21 @@ const VoiceChatBot: React.FC = () => {
                     {
                       icon: MessageCircle,
                       title: 'Email',
-                      detail: 'hello@vintageai.com',
+                      detail: 'lochade180620@fpt.edu.vn',
                       color: 'from-blue-200 to-indigo-200',
                       textColor: 'text-blue-700'
                     },
                     {
                       icon: Volume2,
                       title: 'Phone',
-                      detail: '+84 123 456 789',
+                      detail: '+84 766 552 398',
                       color: 'from-emerald-200 to-teal-200',
                       textColor: 'text-emerald-700'
                     },
                     {
                       icon: Coffee,
                       title: 'Address',
-                      detail: 'Ho Chi Minh City, Vietnam',
+                      detail: 'Da Nang City, Vietnam',
                       color: 'from-amber-200 to-orange-200',
                       textColor: 'text-amber-700'
                     }
@@ -767,11 +766,11 @@ const VoiceChatBot: React.FC = () => {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="p-3 bg-gradient-to-br from-amber-200 to-orange-200 rounded-2xl shadow-lg">
-              <Coffee className="w-8 h-8 text-amber-700" />
+              <img src={FPTLogo} alt="FPT Logo" className="w-16 h-16" />
             </div>
             <div>
               <h1 className={`text-2xl font-serif font-bold ${theme === 'dark' ? 'text-warm-gray-100' : 'text-warm-gray-900'}`}>
-                The Voice Assistant
+                FPTU Voice Assistant
               </h1>
               <p className={`text-sm font-serif italic ${theme === 'dark' ? 'text-warm-gray-400' : 'text-warm-gray-500'}`}>
                 Thoughtful conversations in Vietnamese
@@ -843,8 +842,6 @@ const VoiceChatBot: React.FC = () => {
       <audio
         ref={audioPlayerRef}
         onEnded={handleAudioEnd}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
         style={{ display: 'none' }}
       />
     </div>
