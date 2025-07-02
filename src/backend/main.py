@@ -52,7 +52,7 @@ print(f"Using device: {device}")
 xtts_checkpoint = "model/model.pth"
 xtts_config = "model/config.json"
 xtts_vocab = "model/vocab.json"
-speaker_audio_file = "model/samples/nu-luu-loat.wav"
+speaker_audio_file = "model/samples/vi_man.wav"
 
 def preprocess_text(text, language="vi"):
     if language == "vi":
@@ -253,6 +253,82 @@ chatbot = SmartChabot(qdrant_client, collection_name, embedding_model)
 async def root():
     return {"message": "Voice Chatbot API is running"}
 
+from typing import AsyncGenerator
+
+async def llm_to_queue(llm_text_stream, queue: asyncio.Queue):
+    """
+    Đọc text từ LLM stream, đẩy từng chunk vào queue.
+    """
+    async for chunk in llm_text_stream:
+        await queue.put(chunk)
+    await queue.put(None)  # Tín hiệu kết thúc
+
+async def tts_from_queue(
+    queue: asyncio.Queue,
+    model: Xtts,
+    language: str,
+    gpt_cond_latent: torch.Tensor,
+    speaker_embedding: torch.Tensor,
+    word_count: int = 24  # gom theo số từ thay vì ký tự
+):
+    """
+    Đọc text từ queue, gom word_count từ, chuyển sang audio, yield audio bytes.
+    """
+    buffer = ""
+    while True:
+        chunk = await queue.get()
+        if chunk is None:
+            break
+        buffer += chunk
+        # Gom tất cả các câu kết thúc bằng dấu chấm (hoặc word_count từ)
+        while True:
+            dot_idx = buffer.rfind('.')
+            buffer_words = buffer.strip().split()
+            if dot_idx != -1:
+                text_to_tts = buffer[:dot_idx+1].strip()
+                buffer = buffer[dot_idx+1:]
+            elif len(buffer_words) >= word_count:
+                # Tách word_count từ đầu buffer
+                words = buffer_words[:word_count]
+                text_to_tts = " ".join(words)
+                # Loại bỏ phần đã lấy khỏi buffer
+                rest_words = buffer_words[word_count:]
+                buffer = " ".join(rest_words)
+            else:
+                break
+            if text_to_tts:
+                audio_tensor = tts(
+                    model=model,
+                    text=text_to_tts,
+                    language=language,
+                    gpt_cond_latent=gpt_cond_latent,
+                    speaker_embedding=speaker_embedding,
+                    verbose=False
+                )
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+                    torchaudio.save(tmp_file.name, audio_tensor, 24000)
+                    with open(tmp_file.name, 'rb') as f:
+                        audio_data = f.read()
+                    os.unlink(tmp_file.name)
+                yield audio_data
+    # Xử lý phần còn lại
+    if buffer.strip():
+        audio_tensor = tts(
+            model=model,
+            text=buffer.strip(),
+            language=language,
+            gpt_cond_latent=gpt_cond_latent,
+            speaker_embedding=speaker_embedding,
+            verbose=False
+        )
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+            torchaudio.save(tmp_file.name, audio_tensor, 24000)
+            with open(tmp_file.name, 'rb') as f:
+                audio_data = f.read()
+            os.unlink(tmp_file.name)
+        yield audio_data
+    # Không yield dict nữa
+
 @app.post("/chat-voice")
 async def chat_voice(
     file: UploadFile = File(...), 
@@ -260,7 +336,7 @@ async def chat_voice(
 ):
     """
     Complete voice chatbot pipeline:
-    Audio Input → STT → RAG → TTS → Audio Output
+    Audio Input → STT → RAG → TTS → Audio Output (streamed, concurrent)
     """
     if not file.content_type or not file.content_type.startswith('audio/'):
         raise HTTPException(status_code=400, detail="File must be an audio file")
@@ -305,49 +381,37 @@ async def chat_voice(
             )
             prompt = prompt_outdomain
 
-        # Step 3: Get answer from LLM (llama_cpp_chat_stream)
-        logger.info("Step 3: Getting answer from LLM")
-        answer_chunks = []
-        async for chunk in chatbot.llama_cpp_chat_stream(prompt):
-            answer_chunks.append(chunk)
-        answer = "".join(answer_chunks).strip()
-        logger.info(f"LLM answer: {answer}")
+        # Step 3: Concurrent LLM → TTS → Stream
+        logger.info("Step 3: Getting answer from LLM and streaming TTS (concurrent)")
 
-        # Step 4: Text to Speech (direct call, not HTTP)
-        logger.info("Step 4: Converting answer to speech")
-        try:
-            audio_tensor = tts(
+        async def audio_streamer_concurrent():
+            queue = asyncio.Queue(maxsize=5)
+            llm_stream = chatbot.llama_cpp_chat_stream(prompt)
+            # Start LLM → queue producer
+            producer = asyncio.create_task(llm_to_queue(llm_stream, queue))
+            # Start TTS consumer
+            tts_gen = tts_from_queue(
+                queue,
                 model=XTTS_MODEL,
-                text=answer,
                 language="vi",
                 gpt_cond_latent=gpt_cond_latent,
                 speaker_embedding=speaker_embedding,
-                verbose=False
+                word_count=40  # đổi tên tham số
             )
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
-                torchaudio.save(tmp_file.name, audio_tensor, 24000)
-                with open(tmp_file.name, 'rb') as f:
-                    audio_data = f.read()
-                os.unlink(tmp_file.name)
-            audio_stream = io.BytesIO(audio_data)
-            audio_stream.seek(0)
-            logger.info("Voice chat pipeline completed successfully")
-            # --- Encode headers as base64 to avoid non-ASCII issues ---
-            x_transcription_b64 = base64.b64encode(text.encode("utf-8")).decode("ascii")
-            x_answer_b64 = base64.b64encode(answer.encode("utf-8")).decode("ascii")
-            return StreamingResponse(
-                audio_stream, 
-                media_type="audio/wav",
-                headers={
-                    "X-Transcription": x_transcription_b64,
-                    "X-Answer": x_answer_b64,
-                    "Content-Disposition": "inline; filename=response.wav"
-                }
-            )
-        except Exception as e:
-            logger.error(f"Audio decoding failed: {str(e)}")
-            raise HTTPException(status_code=500, detail="Audio processing failed")
+            async for audio_bytes in tts_gen:
+                yield audio_bytes
+            await producer
 
+        x_transcription_b64 = base64.b64encode(text.encode("utf-8")).decode("ascii")
+        return StreamingResponse(
+            audio_streamer_concurrent(),
+            media_type="audio/wav",
+            headers={
+                "X-Transcription": x_transcription_b64,
+                "X-Answer": "",
+                "Content-Disposition": "inline; filename=response.wav"
+            }
+        )
     except HTTPException:
         raise
     except Exception as e:
