@@ -115,25 +115,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-async def startup_event():
-    global XTTS_MODEL, gpt_cond_latent, speaker_embedding
-    print("Loading TTS model...")
-    config = XttsConfig()
-    config.load_json(xtts_config)
-    XTTS_MODEL = Xtts.init_from_config(config)
-    XTTS_MODEL.load_checkpoint(config,
-                              checkpoint_path=xtts_checkpoint,
-                              vocab_path=xtts_vocab,
-                              use_deepspeed=False)
-    XTTS_MODEL.to(device)
-    gpt_cond_latent, speaker_embedding = XTTS_MODEL.get_conditioning_latents(
-        audio_path=speaker_audio_file,
-        gpt_cond_len=XTTS_MODEL.config.gpt_cond_len,
-        max_ref_length=XTTS_MODEL.config.max_ref_len,
-        sound_norm_refs=XTTS_MODEL.config.sound_norm_refs,
-    )
-    print("TTS model loaded successfully!")
+# @app.on_event("startup")
+# async def startup_event():
+#     global XTTS_MODEL, gpt_cond_latent, speaker_embedding
+#     print("Loading TTS model...")
+#     config = XttsConfig()
+#     config.load_json(xtts_config)
+#     XTTS_MODEL = Xtts.init_from_config(config)
+#     XTTS_MODEL.load_checkpoint(config,
+#                               checkpoint_path=xtts_checkpoint,
+#                               vocab_path=xtts_vocab,
+#                               use_deepspeed=False)
+#     XTTS_MODEL.to(device)
+#     gpt_cond_latent, speaker_embedding = XTTS_MODEL.get_conditioning_latents(
+#         audio_path=speaker_audio_file,
+#         gpt_cond_len=XTTS_MODEL.config.gpt_cond_len,
+#         max_ref_length=XTTS_MODEL.config.max_ref_len,
+#         sound_norm_refs=XTTS_MODEL.config.sound_norm_refs,
+#     )
+#     print("TTS model loaded successfully!")
 
 class SmartChabot:
     @timeit("SmartChabot.__init__")
@@ -230,6 +230,30 @@ class SmartChabot:
         logger.info(f"Max similarity for question '{question}': {max_sim:.4f}")
         return max_sim >= threshold
 
+    def is_in_domain_v2(self, question: str, context: str = "", secret_key: str = None, model: str = "gemini-2.0-flash-lite") -> bool:
+        """
+        Sử dụng Gemini để xác định truy vấn có liên quan tới trường hoặc giáo trình/môn học dựa trên cả câu hỏi và ngữ cảnh.
+        Trả về True nếu liên quan, False nếu là chat thông thường.
+        """
+        from google import genai
+        if secret_key is None:
+            secret_key = os.getenv("GEMINI_API_KEY")
+        client = genai.Client(api_key=secret_key)
+        prompt = (
+            "Bạn là hệ thống phân loại truy vấn. "
+            "Dựa vào NGỮ CẢNH dưới đây, hãy xác định xem truy vấn có liên quan đến trường đại học, giáo trình hoặc môn học nào đó không. "
+            "Nếu có liên quan, trả về 'true'. Nếu chỉ là chat thông thường, không liên quan đến trường, giáo trình hoặc môn học, trả về 'false'. "
+            "Chỉ trả về đúng một từ 'true' hoặc 'false', không giải thích thêm.\n\n"
+            f"NGỮ CẢNH:\n{context}\n\n"
+            f"TRUY VẤN:\n{question}"
+        )
+        response = client.models.generate_content(
+            model=model,
+            contents=[prompt]
+        )
+        answer = response.text.strip().lower()
+        return answer == "true"
+
 
 def gemini_stt(audio_path: str, secret_key: str = None, model: str = "gemini-2.0-flash"):
     from google import genai
@@ -269,65 +293,62 @@ async def tts_from_queue(
     language: str,
     gpt_cond_latent: torch.Tensor,
     speaker_embedding: torch.Tensor,
-    word_count: int = 24  # gom theo số từ thay vì ký tự
+    chunk_size: int = 4096  # Stream in ~100ms chunks
 ):
-    """
-    Đọc text từ queue, gom word_count từ, chuyển sang audio, yield audio bytes.
-    """
+    """Stream TTS audio from text queue"""
     buffer = ""
     while True:
         chunk = await queue.get()
         if chunk is None:
             break
+            
         buffer += chunk
-        # Gom tất cả các câu kết thúc bằng dấu chấm (hoặc word_count từ)
-        while True:
-            dot_idx = buffer.rfind('.')
-            buffer_words = buffer.strip().split()
-            if dot_idx != -1:
-                text_to_tts = buffer[:dot_idx+1].strip()
-                buffer = buffer[dot_idx+1:]
-            elif len(buffer_words) >= word_count:
-                # Tách word_count từ đầu buffer
-                words = buffer_words[:word_count]
-                text_to_tts = " ".join(words)
-                # Loại bỏ phần đã lấy khỏi buffer
-                rest_words = buffer_words[word_count:]
-                buffer = " ".join(rest_words)
-            else:
-                break
-            if text_to_tts:
-                audio_tensor = tts(
-                    model=model,
-                    text=text_to_tts,
+        sentences = preprocess_text(buffer, language)
+        
+        if sentences:
+            buffer = sentences[-1] # Keep incomplete sentence
+            sentences = sentences[:-1]
+            
+            for sentence in sentences:
+                # Generate audio
+                wav = model.inference(
+                    text=sentence,
                     language=language,
                     gpt_cond_latent=gpt_cond_latent,
                     speaker_embedding=speaker_embedding,
-                    verbose=False
+                    length_penalty=1.0, 
+                    repetition_penalty=10.0,
+                    top_k=10,
+                    top_p=0.5,
                 )
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
-                    torchaudio.save(tmp_file.name, audio_tensor, 24000)
-                    with open(tmp_file.name, 'rb') as f:
-                        audio_data = f.read()
-                    os.unlink(tmp_file.name)
-                yield audio_data
-    # Xử lý phần còn lại
+                
+                # Stream audio in chunks
+                audio_np = wav["wav"] 
+                audio_bytes = (audio_np * 32767).astype(np.int16).tobytes()
+                
+                for i in range(0, len(audio_bytes), chunk_size):
+                    yield audio_bytes[i:i + chunk_size]
+                    
+                # Small pause between sentences
+                yield b'\x00' * 1000
+
+    # Process remaining text
     if buffer.strip():
-        audio_tensor = tts(
-            model=model,
-            text=buffer.strip(),
+        wav = model.inference(
+            text=buffer,
             language=language,
             gpt_cond_latent=gpt_cond_latent,
             speaker_embedding=speaker_embedding,
-            verbose=False
+            length_penalty=1.0,
+            repetition_penalty=10.0,
+            top_k=10,
+            top_p=0.5,
         )
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
-            torchaudio.save(tmp_file.name, audio_tensor, 24000)
-            with open(tmp_file.name, 'rb') as f:
-                audio_data = f.read()
-            os.unlink(tmp_file.name)
-        yield audio_data
-    # Không yield dict nữa
+        audio_np = wav["wav"]
+        audio_bytes = (audio_np * 32767).astype(np.int16).tobytes()
+        
+        for i in range(0, len(audio_bytes), chunk_size):
+            yield audio_bytes[i:i + chunk_size]
 
 @app.post("/chat-voice")
 async def chat_voice(
@@ -431,7 +452,8 @@ async def chat_text_stream(request: dict):
         raise HTTPException(status_code=400, detail="Question is required")
 
     context = chatbot.get_context_from_qdrant(question)
-    in_domain = chatbot.is_in_domain(question)
+    secret_key = os.getenv("GEMINI_API_KEY")
+    in_domain = chatbot.is_in_domain_v2(question, context=context, secret_key=secret_key)
     print(f"in_domain: {in_domain}...")  
     # Đảm bảo không truyền URL có ký tự lạ (nếu có custom server_url thì .strip())
     if in_domain:

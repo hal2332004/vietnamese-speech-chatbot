@@ -16,13 +16,16 @@ from torch.utils.model_zoo import tqdm
 def stream_url(
     url: str, start_byte: Optional[int] = None, block_size: int = 32 * 1024, progress_bar: bool = True
 ) -> Iterable:
-    """Stream url by chunk
+    """Stream url by chunk for efficient memory usage
 
     Args:
-        url (str): Url.
-        start_byte (int or None, optional): Start streaming at that point (Default: ``None``).
-        block_size (int, optional): Size of chunks to stream (Default: ``32 * 1024``).
-        progress_bar (bool, optional): Display a progress bar (Default: ``True``).
+        url (str): URL to stream
+        start_byte (Optional[int]): Starting byte position
+        block_size (int): Size of chunks to stream
+        progress_bar (bool): Show progress bar
+
+    Returns:
+        Iterable: Generator yielding chunks of data
     """
 
     # If we already have the whole file, there is no need to download it again
@@ -37,19 +40,13 @@ def stream_url(
         req.headers["Range"] = "bytes={}-".format(start_byte)
 
     with urllib.request.urlopen(req) as upointer, tqdm(
-        unit="B",
-        unit_scale=True,
-        unit_divisor=1024,
-        total=url_size,
-        disable=not progress_bar,
+        unit="B", unit_scale=True, unit_divisor=1024, total=url_size, disable=not progress_bar,
     ) as pbar:
-        num_bytes = 0
         while True:
             chunk = upointer.read(block_size)
             if not chunk:
                 break
             yield chunk
-            num_bytes += len(chunk)
             pbar.update(len(chunk))
 
 
@@ -201,6 +198,9 @@ def download_kaggle_dataset(dataset_path: str, dataset_name: str, output_path: s
         print(f"""\nDownloading {dataset_name}...""")
         kaggle.api.dataset_download_files(dataset_path, path=data_path, unzip=True)
     except OSError:
+        print(
+            f"""[!] in order to download kaggle datasets, you need to have a kaggle api token stored in your {os.path.join(expanduser('~'), '.kaggle/kaggle.json')}"""
+        )
         print(
             f"""[!] in order to download kaggle datasets, you need to have a kaggle api token stored in your {os.path.join(expanduser('~'), '.kaggle/kaggle.json')}"""
         )

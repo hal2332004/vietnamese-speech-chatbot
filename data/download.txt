@@ -69,14 +69,11 @@ cmake --build build --config Release
 
 D:\Ky 4\vietnamese-speech-chatbox\models\llama.cpp\build\bin
 export PATH=$PATH:/mnt/d/Ky\ 4/vietnamese-speech-chatbox/models/llama.cpp/build/bin
-llama-cli 
-llama-cli --model Vi-Qwen2-3B-RAG.Q8_0.gguf -cnv -c 16384 
-./llama-server -m Vi-Qwen2-3B-RAG.Q8_0.gguf --chat-template vicuna -ngl 32
 ./llama-server -m Vi-Qwen2-3B-RAG.Q8_0.gguf -ngl -1
 
 nproc
 cmake -B build -DGGML_CUDA=on -DLLAMA_JINJA=on
-cmake --build build --config Release -j6
+cmake --build build --config Release -j12
 cmake --build build --config Release -j$(nproc)
 
 template = '''Chú ý các yêu cầu sau:

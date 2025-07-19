@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 import torch
 import torchaudio
@@ -15,6 +15,7 @@ import io
 import base64
 from typing import Optional
 import uvicorn
+import numpy as np
 
 app = FastAPI(
     title="Vietnamese TTS API",
@@ -217,6 +218,70 @@ async def text_to_speech_file(request: TTSRequest):
         
     except Exception as e:
         print(f"Error in TTS: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def stream_tts_chunks(
+    text: str,
+    model: Xtts,
+    language: str = "vi",
+    chunk_size: int = 4096, # ~100ms of audio at 44.1kHz
+    gpt_cond_latent: torch.Tensor = None,
+    speaker_embedding: torch.Tensor = None,
+):
+    """Generate and stream TTS audio chunks"""
+    # Break text into sentences
+    chunks = preprocess_text(text, language)
+    
+    for text_chunk in chunks:
+        if text_chunk.strip() == "":
+            continue
+            
+        # Generate audio for chunk
+        wav_chunk = model.inference(
+            text=text_chunk,
+            language=language,
+            gpt_cond_latent=gpt_cond_latent,
+            speaker_embedding=speaker_embedding,
+            length_penalty=1.0,
+            repetition_penalty=10.0,
+            top_k=10,
+            top_p=0.5,
+        )
+        
+        # Convert to audio bytes
+        audio_np = wav_chunk["wav"]
+        audio_bytes = (audio_np * 32767).astype(np.int16).tobytes()
+        
+        # Stream in smaller chunks
+        for i in range(0, len(audio_bytes), chunk_size):
+            yield audio_bytes[i:i + chunk_size]
+        
+        # Small pause between sentences
+        yield b'\x00' * 1000
+
+@app.post("/tts/stream")
+async def stream_tts(request: TTSRequest):
+    """Stream TTS audio in chunks"""
+    if not request.text:
+        raise HTTPException(status_code=400, detail="Text is required")
+
+    try:
+        return StreamingResponse(
+            stream_tts_chunks(
+                text=request.text,
+                model=XTTS_MODEL,
+                language=request.language,
+                gpt_cond_latent=gpt_cond_latent,
+                speaker_embedding=speaker_embedding
+            ),
+            media_type="audio/wav",
+            headers={
+                "Content-Disposition": "attachment; filename=speech.wav"
+            }
+        )
+        
+    except Exception as e:
+        print(f"Error in TTS streaming: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # @app.get("/health", response_model=HealthResponse)

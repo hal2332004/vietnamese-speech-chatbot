@@ -22,6 +22,7 @@ from transformers import (
     StoppingCriteriaList,
 )
 from transformers.generation.utils import GenerateOutput, SampleOutput, logger
+from transformers.pytorch_utils import is_torch_greater_or_equal_than_2_4
 
 
 def setup_seed(seed):
@@ -126,23 +127,22 @@ class NewGenerationMixin(GenerationMixin):
         """
         # setup_seed(seed)
         # 1. Handle `generation_config` and kwargs that might update it, and validate the `.generate()` call
-        self._validate_model_class()
-
         # priority: `generation_config` argument > `model.generation_config` (the default generation config)
         if generation_config is None:
-            # legacy: users may modify the model configuration to control generation -- update the generation config
-            # model attribute accordingly, if it was created from the model config
-            if self.generation_config._from_model_config:
-                new_generation_config = StreamGenerationConfig.from_model_config(self.config)
-                if new_generation_config != self.generation_config:
-                    warnings.warn(
-                        "You have modified the pretrained model configuration to control generation. This is a"
-                        " deprecated strategy to control generation and will be removed soon, in a future version."
-                        " Please use a generation configuration file (see"
-                        " https://huggingface.co/docs/transformers/main_classes/text_generation)"
-                    )
-                    self.generation_config = new_generation_config
-            generation_config = self.generation_config
+            raise ValueError("generation_config must be provided and cannot be None.")
+
+        # Check if _from_model_config exists and is valid
+        if getattr(generation_config, "_from_model_config", False):
+            new_generation_config = StreamGenerationConfig.from_model_config(self.config)
+            if new_generation_config != self.generation_config:
+                warnings.warn(
+                    "You have modified the pretrained model configuration to control generation. This is a"
+                    " deprecated strategy to control generation and will be removed soon, in a future version."
+                    " Please use a generation configuration file (see"
+                    " https://huggingface.co/docs/transformers/main_classes/text_generation)"
+                )
+                self.generation_config = new_generation_config
+        generation_config = self.generation_config
 
         generation_config = copy.deepcopy(generation_config)
         model_kwargs = generation_config.update(**kwargs)  # All unused kwargs must be model kwargs
@@ -928,3 +928,24 @@ if __name__ == "__main__":
             chunk = tokenizer.decode(x, skip_special_tokens=True)
             stream_result += chunk
         print(stream_result)
+
+
+def isin_mps_friendly(elements, test_elements):
+    """
+    Same as `torch.isin` without flags, but MPS-friendly and handles integer inputs. 
+    We can remove this function when we stop supporting torch <= 2.3. 
+    """
+    # Convert int/list inputs to tensors
+    if isinstance(elements, (int, list)):
+        elements = torch.tensor(elements)
+    if isinstance(test_elements, (int, list)):
+        test_elements = torch.tensor(test_elements)
+
+    # Handle MPS device
+    if elements.device.type == "mps" and not is_torch_greater_or_equal_than_2_4:
+        test_elements = test_elements.to(elements.device)
+        return torch.any(elements.unsqueeze(-1) == test_elements, dim=-1)
+    
+    return torch.isin(elements, test_elements)
+    
+    return torch.isin(elements, test_elements)

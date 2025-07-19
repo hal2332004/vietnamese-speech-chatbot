@@ -1,0 +1,10 @@
+pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu126
+
+cmake -B build -DGGML_CUDA=on 
+cmake --build build --config Release -j4
+
+git clone -b features/orinx --single-branch https://github.com/hal2332004/vietnamese-speech-chatbot.git
+
+https://huggingface.co/mradermacher/Vi-Qwen2-3B-RAG-GGUF/tree/main
+model text: ./llama-server -m Vi-Qwen2-3B-RAG.Q8_0.gguf -ngl -1
+model tts:

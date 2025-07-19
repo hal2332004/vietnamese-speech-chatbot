@@ -6,8 +6,8 @@ __pycache__/
 *.pyc
 
 *.wav
-*.safetensors
+# *.safetensors
 *.mp3
-*.pth
+# *.pth
 notebooks/viF5TTS/
 models/llama.cpp
