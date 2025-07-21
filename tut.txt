@@ -6,5 +6,8 @@ cmake --build build --config Release -j4
 git clone -b features/orinx --single-branch https://github.com/hal2332004/vietnamese-speech-chatbot.git
 
 https://huggingface.co/mradermacher/Vi-Qwen2-3B-RAG-GGUF/tree/main
+wget https://huggingface.co/mradermacher/Vi-Qwen2-3B-RAG-GGUF/resolve/main/Vi-Qwen2-3B-RAG.Q8_0.gguf
+curl -L -o Vi-Qwen2-3B-RAG.Q8_0.gguf https://huggingface.co/mradermacher/Vi-Qwen2-3B-RAG-GGUF/resolve/main/Vi-Qwen2-3B-RAG.Q8_0.gguf
+
 model text: ./llama-server -m Vi-Qwen2-3B-RAG.Q8_0.gguf -ngl -1
 model tts:
